@@ -3,14 +3,19 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/main/Header";
-import PixelGrid from "@/components/main/PixelGrid";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pixel } from "@/lib/types";
-
+import PixelGrid from "@/components/main/PixelGrid";
 
 export default function Home() {
   const pathname = usePathname();
@@ -25,6 +30,8 @@ export default function Home() {
   const [contentUrl, setContentUrl] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [scrollPosition, setScrollPosition] = useState({ scrollLeft: 0, scrollTop: 0 });
+  const [focusedBlock, setFocusedBlock] = useState<{ x: number; y: number } | null>(null);
 
   // 초기 픽셀 데이터 로드 (페이지 로드 시 한 번만 호출)
   useEffect(() => {
@@ -94,6 +101,19 @@ export default function Home() {
     setZoomLevel((prev) => Math.max(prev - 0.5, 0.5));
   };
 
+  const handleScroll = (scrollInfo: { scrollLeft: number; scrollTop: number }) => {
+    setScrollPosition(scrollInfo);
+    // 화면 중앙에 있는 블록 계산
+    const viewportWidth = 1500; // 그리드 너비
+    const viewportHeight = 1000; // 그리드 높이
+    const blockSize = BLOCK_SIZE * zoomLevel;
+    const centerX = (scrollInfo.scrollLeft + viewportWidth / 2) / blockSize;
+    const centerY = (scrollInfo.scrollTop + viewportHeight / 2) / blockSize;
+    const blockX = Math.floor(centerX) * BLOCK_SIZE;
+    const blockY = Math.floor(centerY) * BLOCK_SIZE;
+    setFocusedBlock({ x: blockX, y: blockY });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -137,8 +157,11 @@ export default function Home() {
           purchasedPixels={purchasedPixels}
           selected={selected}
           zoomLevel={zoomLevel}
+          focusedBlock={focusedBlock}
+          scrollPosition={scrollPosition}
           onBlockClick={handleBlockClick}
           onGridUpdate={handleGridUpdate}
+          onScroll={handleScroll}
         />
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
