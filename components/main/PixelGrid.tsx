@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import { Grid, GridCellRenderer, ScrollParams } from "react-virtualized";
 import {
   Tooltip,
@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { GridPixel, Pixel } from "@/lib/types";
 import debounce from "lodash/debounce";
+import { memo } from "react";
 
 // 이징 함수 정의
 const easingFunctions = {
@@ -30,9 +31,107 @@ type PixelGridProps = {
   onScroll: (scrollInfo: ScrollParams) => void;
   gridWidth: number;
   gridHeight: number;
-  scrollDuration?: number; // 지속 시간 prop 추가
-  scrollEasing?: keyof typeof easingFunctions; // 이징 함수 prop 추가
+  scrollDuration?: number;
+  scrollEasing?: keyof typeof easingFunctions;
 };
+
+// CellRenderer 컴포넌트 prop 타입 정의
+interface CellRendererProps {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  isVisible: boolean; // react-virtualized에서 제공
+  pixelMap: Record<string, GridPixel>;
+  selected: { x: number; y: number; size: number } | null;
+  zoomLevel: number;
+  onBlockClick: (x: number, y: number) => void;
+}
+
+const CellRenderer = ({
+  columnIndex,
+  rowIndex,
+  style,
+  isVisible,
+  pixelMap,
+  selected,
+  zoomLevel,
+  onBlockClick,
+}: CellRendererProps) => {
+  const BASE_BLOCK_SIZE = 10;
+  const BLOCK_SIZE = BASE_BLOCK_SIZE * zoomLevel;
+
+  const x = columnIndex * BASE_BLOCK_SIZE;
+  const y = rowIndex * BASE_BLOCK_SIZE;
+  const pixel = pixelMap[`${x}-${y}`] || { x, y, purchased: false };
+
+  const isPurchased = pixel.purchased;
+  const isSelected =
+    selected &&
+    x === selected.x &&
+    y === selected.y &&
+    x < selected.x + selected.size &&
+    y < selected.y + selected.size;
+
+  const blockStyle = {
+    ...style,
+    width: BLOCK_SIZE,
+    height: BLOCK_SIZE,
+    backgroundColor: isPurchased ? "blue" : "#e5e7eb",
+    border: isSelected ? "2px solid #3b82f6" : "none",
+    backgroundImage: isPurchased && pixel.content ? `url(${pixel.content})` : "none",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
+
+  return (
+    <TooltipProvider>
+      <div
+        style={blockStyle}
+        onClick={() => onBlockClick(x, y)}
+        onTouchEnd={() => onBlockClick(x, y)}
+        className={isSelected ? "bg-blue-200 bg-opacity-30" : ""}
+      >
+        {/* 툴팁을 화면에 보이는 블록에만 렌더링 */}
+        {isVisible && isPurchased && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full h-full" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                <strong>Position:</strong> ({x}, {y})
+              </p>
+              <p>
+                <strong>Owner:</strong> {pixel.owner || "Unknown"}
+              </p>
+              <p>
+                <strong>Content:</strong> {pixel.content || "No content"}
+              </p>
+              <p>
+                <strong>Type:</strong> {pixel.purchaseType || "basic"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+};
+
+// displayName 설정 및 memo 적용
+CellRenderer.displayName = "CellRenderer";
+const MemoizedCellRenderer = memo(
+  CellRenderer,
+  (prevProps, nextProps) =>
+    prevProps.columnIndex === nextProps.columnIndex &&
+    prevProps.rowIndex === nextProps.rowIndex &&
+    prevProps.style === nextProps.style &&
+    prevProps.isVisible === nextProps.isVisible &&
+    prevProps.pixelMap === nextProps.pixelMap &&
+    prevProps.selected === nextProps.selected &&
+    prevProps.zoomLevel === nextProps.zoomLevel &&
+    prevProps.onBlockClick === nextProps.onBlockClick
+);
 
 export default function PixelGrid({
   purchasedPixels,
@@ -45,14 +144,31 @@ export default function PixelGrid({
   onScroll,
   gridWidth,
   gridHeight,
-  scrollDuration = 300, // 기본값 300ms
-  scrollEasing = "easeInOutQuad", // 기본값 easeInOutQuad
+  scrollDuration = 300,
+  scrollEasing = "easeInOutQuad",
 }: PixelGridProps) {
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
   const BASE_BLOCK_SIZE = 10;
   const BLOCK_SIZE = BASE_BLOCK_SIZE * zoomLevel;
   const gridRef = useRef<Grid>(null);
+
+  // purchasedPixels를 해시맵으로 변환 (useMemo로 메모이제이션)
+  const pixelMap = useMemo(() => {
+    const map: Record<string, GridPixel> = {};
+    purchasedPixels.forEach((pixel) => {
+      const key = `${pixel.x}-${pixel.y}`;
+      map[key] = {
+        x: pixel.x,
+        y: pixel.y,
+        purchased: true,
+        owner: pixel.owner,
+        content: pixel.content,
+        purchaseType: pixel.purchaseType,
+      };
+    });
+    return map;
+  }, [purchasedPixels]);
 
   // 부드러운 스크롤 함수
   const smoothScrollTo = useCallback(
@@ -90,29 +206,6 @@ export default function PixelGrid({
     [scrollPosition, scrollDuration, scrollEasing]
   );
 
-  // purchasedPixels를 기반으로 블록 상태 확인
-  const getPixelAt = (x: number, y: number): GridPixel => {
-    const pixel = purchasedPixels.find(
-      (p) =>
-        x >= p.x &&
-        x < p.x + p.size &&
-        y >= p.y &&
-        y < p.y + p.size &&
-        x === p.x &&
-        y === p.y
-    );
-    return pixel
-      ? {
-          x,
-          y,
-          purchased: true,
-          owner: pixel.owner,
-          content: pixel.content,
-          purchaseType: pixel.purchaseType,
-        }
-      : { x, y, purchased: false };
-  };
-
   // 디바운싱된 onScroll 핸들러
   const debouncedOnScroll = debounce((scrollInfo: ScrollParams) => {
     onScroll(scrollInfo);
@@ -138,61 +231,16 @@ export default function PixelGrid({
     onGridUpdate();
   }, [zoomLevel, focusedBlock, onGridUpdate, gridWidth, gridHeight, smoothScrollTo]);
 
-  const cellRenderer: GridCellRenderer = ({ columnIndex, rowIndex, style }) => {
-    const x = columnIndex * BASE_BLOCK_SIZE;
-    const y = rowIndex * BASE_BLOCK_SIZE;
-    const pixel = getPixelAt(x, y);
-
-    const isPurchased = pixel.purchased;
-    const isSelected =
-      selected &&
-      x === selected.x &&
-      y === selected.y &&
-      x < selected.x + selected.size &&
-      y < selected.y + selected.size;
-
-    const blockStyle = {
-      ...style,
-      width: BLOCK_SIZE,
-      height: BLOCK_SIZE,
-      backgroundColor: isPurchased ? "blue" : "#e5e7eb",
-      border: isSelected ? "2px solid #3b82f6" : "none",
-      backgroundImage: isPurchased && pixel.content ? `url(${pixel.content})` : "none",
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-    };
-
-    return (
-      <TooltipProvider key={`${columnIndex}-${rowIndex}`}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              style={blockStyle}
-              onClick={() => onBlockClick(x, y)}
-              onTouchEnd={() => onBlockClick(x, y)}
-              className={isSelected ? "bg-blue-200 bg-opacity-30" : ""}
-            />
-          </TooltipTrigger>
-          {isPurchased && (
-            <TooltipContent>
-              <p>
-                <strong>Position:</strong> ({x}, {y})
-              </p>
-              <p>
-                <strong>Owner:</strong> {pixel.owner || "Unknown"}
-              </p>
-              <p>
-                <strong>Content:</strong> {pixel.content || "No content"}
-              </p>
-              <p>
-                <strong>Type:</strong> {pixel.purchaseType || "basic"}
-              </p>
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
-    );
-  };
+  const cellRenderer: GridCellRenderer = ({ key, ...props }) => (
+    <MemoizedCellRenderer
+      key={key}
+      {...props}
+      pixelMap={pixelMap}
+      selected={selected}
+      zoomLevel={zoomLevel}
+      onBlockClick={onBlockClick}
+    />
+  );
 
   return (
     <div className="relative border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image"; // next/image에서 Image 컴포넌트 임포트
 import Header from "@/components/main/Header";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -36,13 +37,26 @@ export default function Home() {
   const [gridWidth, setGridWidth] = useState(1500);
   const [gridHeight, setGridHeight] = useState(1000);
 
-  // 초기 픽셀 데이터 로드 (페이지 로드 시 한 번만 호출)
+  // localStorage에서 캐싱된 데이터 로드
   useEffect(() => {
     const loadPixels = async () => {
       setIsLoading(true);
-      const savedPixels: Pixel[] = await getPixels();
-      setPurchasedPixels(savedPixels);
-      setIsLoading(false);
+      try {
+        const cachedPixels = localStorage.getItem("purchasedPixels");
+        if (cachedPixels) {
+          setPurchasedPixels(JSON.parse(cachedPixels));
+          setIsLoading(false);
+          return;
+        }
+
+        const savedPixels: Pixel[] = await getPixels();
+        setPurchasedPixels(savedPixels);
+        localStorage.setItem("purchasedPixels", JSON.stringify(savedPixels));
+      } catch (error) {
+        console.error("Failed to load pixels:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadPixels();
   }, []);
@@ -52,6 +66,7 @@ export default function Home() {
     const handleBeforeUnload = async () => {
       if (purchasedPixels.length > 0) {
         await savePixels(purchasedPixels);
+        localStorage.setItem("purchasedPixels", JSON.stringify(purchasedPixels));
       }
     };
 
@@ -139,7 +154,6 @@ export default function Home() {
     const { scale, positionX, positionY } = ref.state;
     setZoomLevel(scale);
 
-    // 줌 중심점을 기준으로 focusedBlock 계산
     const viewportWidth = gridWidth;
     const viewportHeight = gridHeight;
     const blockSize = BLOCK_SIZE * scale;
@@ -189,32 +203,45 @@ export default function Home() {
           </Button>
         </div>
 
-        <TransformWrapper
-          initialScale={1}
-          minScale={0.5}
-          maxScale={5}
-          onZoom={handlePinchZoom}
-          panning={{ disabled: true }}
-        >
-          <TransformComponent>
-            <div style={{ width: gridWidth, height: gridHeight }}>
-              <PixelGrid
-                purchasedPixels={purchasedPixels}
-                selected={selected}
-                zoomLevel={zoomLevel}
-                focusedBlock={focusedBlock}
-                scrollPosition={scrollPosition}
-                onBlockClick={handleBlockClick}
-                onGridUpdate={handleGridUpdate}
-                onScroll={handleScroll}
-                gridWidth={gridWidth}
-                gridHeight={gridHeight}
-                scrollDuration={500} // 지속 시간 설정 (500ms)
-                scrollEasing="easeOutQuad" // 이징 함수 설정
-              />
-            </div>
-          </TransformComponent>
-        </TransformWrapper>
+        <div className="relative">
+          <TransformWrapper
+            initialScale={1}
+            minScale={0.5}
+            maxScale={5}
+            onZoom={handlePinchZoom}
+            panning={{ disabled: true }}
+          >
+            <TransformComponent>
+              <div style={{ width: gridWidth, height: gridHeight }}>
+                <PixelGrid
+                  purchasedPixels={purchasedPixels}
+                  selected={selected}
+                  zoomLevel={zoomLevel}
+                  focusedBlock={focusedBlock}
+                  scrollPosition={scrollPosition}
+                  onBlockClick={handleBlockClick}
+                  onGridUpdate={handleGridUpdate}
+                  onScroll={handleScroll}
+                  gridWidth={gridWidth}
+                  gridHeight={gridHeight}
+                  scrollDuration={500}
+                  scrollEasing="easeOutQuad"
+                />
+              </div>
+            </TransformComponent>
+          </TransformWrapper>
+
+          {/* example.png 이미지를 가운데에 오버레이로 추가 (Image 컴포넌트 사용) */}
+          <Image
+            src="/example.png"
+            alt="Example Image"
+            width={300} // 원본 크기 지정
+            height={300} // 원본 크기 지정
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 w-[300px] h-[300px] sm:w-[200px] sm:h-[200px] object-contain"
+            quality={75} // 이미지 품질 설정 (기본값: 75)
+            priority // LCP 개선을 위해 우선 로드
+          />
+        </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
