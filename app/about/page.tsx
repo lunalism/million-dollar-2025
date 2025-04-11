@@ -1,43 +1,133 @@
+// app/about/page.tsx
 "use client";
 
-import { usePathname } from "next/navigation";
-import Header from "@/components/main/Header";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+// 필요한 모듈 임포트
+import { useState, useEffect } from "react"; // React 훅
+import { usePathname } from "next/navigation"; // 현재 경로를 가져오기 위한 훅
+import Header from "@/components/main/Header"; // 상단 헤더 컴포넌트
+import Link from "next/link"; // 페이지 간 이동을 위한 링크 컴포넌트
+import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
+import { getAboutContent } from "@/lib/supabase"; // Supabase에서 데이터 가져오기
 
+// About 페이지 콘텐츠 타입 정의
+interface AboutContentItem {
+    id: number;
+    category: string;
+    title: string;
+    content: string;
+}
+
+// About 페이지 컴포넌트
 export default function About() {
+    // 현재 경로 가져오기
     const pathname = usePathname();
 
+    // 상태 정의
+    const [contentItems, setContentItems] = useState<AboutContentItem[]>([]); // About 콘텐츠 데이터
+    const [selectedCategory, setSelectedCategory] = useState<string>(""); // 선택된 카테고리
+    const [isLoading, setIsLoading] = useState(true); // 로딩 상태
+
+    // Supabase에서 데이터 로드
+    useEffect(() => {
+        const loadContent = async () => {
+            setIsLoading(true); // 로딩 시작
+            try {
+                // Supabase에서 About 콘텐츠 가져오기
+                const data = await getAboutContent();
+                setContentItems(data);
+                // 첫 번째 카테고리를 기본 선택
+                if (data.length > 0) {
+                    setSelectedCategory(data[0].category);
+                }
+            } catch (error) {
+                console.error("Failed to load about content:", error);
+            } finally {
+                setIsLoading(false); // 로딩 종료
+            }
+        };
+        loadContent();
+    }, []); // 컴포넌트 마운트 시 실행
+
+    // 선택된 카테고리의 콘텐츠 찾기
+    const selectedContent = contentItems.find((item) => item.category === selectedCategory);
+
+    // 로딩 중일 때 표시
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+                <p className="text-lg text-gray-600">Loading...</p>
+            </div>
+        );
+    }
+
+    // 콘텐츠가 없을 때 표시
+    if (contentItems.length === 0) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+                <p className="text-lg text-gray-600">No content available.</p>
+            </div>
+        );
+    }
+
     return (
+        // 메인 레이아웃: 최소 높이 화면 전체, 배경 흰색, 세로 방향 플렉스, 상하 패딩 8
         <div className="min-h-screen bg-white flex flex-col py-8">
+        {/* 헤더 컴포넌트: 현재 경로를 props로 전달 */}
             <Header activePath={pathname} />
-            <section className="max-w-2xl mx-auto text-center">
-                <h2 className="text-3xl font-semibold text-gray-800 mb-4">
-                    Why We Started This
-                </h2>
-                <p className="text-gray-600 mb-6">
-                    I’m an aspiring entrepreneur working on an iOS app startup to create innovative solutions that make people’s lives easier. However, starting a tech company requires significant funding for development, marketing, and scaling. Inspired by the original Million Dollar Homepage, I launched this 2025 version to raise initial funds for my startup by selling pixels at $1 each.
-                </p>
+            {/* 메인 콘텐츠 섹션: 최대 너비 7xl, 중앙 정렬, 플렉스 레이아웃, 모바일에서는 세로, 중간 크기 이상에서 가로 */}
+            <section className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row gap-8">
+                {/* 1열: 대제목(카테고리) 리스트, 너비 조정 (md:w-1/4) */}
+                <div className="md:w-1/4">
+                    <h2 className="text-3xl font-bold text-[#0F4C81] mb-4">Categories</h2>
+                    <div className="space-y-2">
+                        {contentItems.map((item) => (
+                        <Button
+                            key={item.category}
+                            variant="ghost"
+                            className={`w-full text-left justify-start relative transition-all duration-300 ${
+                            selectedCategory === item.category
+                                ? "text-[#0F4C81] font-semibold bg-[#0F4C81]/10"
+                                : "text-gray-600 hover:text-[#0F4C81] hover:bg-[#0F4C81]/5"
+                            }`}
+                            onClick={() => setSelectedCategory(item.category)}
+                        >
+                            {/* 선택된 카테고리에 왼쪽 세로 바 표시 */}
+                            {selectedCategory === item.category && (
+                            <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
+                            )}
+                            {item.title}
+                        </Button>
+                        ))}
+                    </div>
+                </div>
 
-                <h2 className="text-3xl font-semibold text-gray-800 mb-4">
-                    Our Vision
-                </h2>
-                <p className="text-gray-600 mb-6">
-                    With the funds raised, I plan to build an iOS app that revolutionizes how people interact with technology in their daily lives. The app will focus on [insert app idea or focus, e.g., productivity, education, or social impact], aiming to deliver real value to users worldwide. By purchasing pixels, you’re not just buying a piece of this page—you’re supporting a dream to create something meaningful.
-                </p>
-
-                <h2 className="text-3xl font-semibold text-gray-800 mb-4">
-                    How You Can Help
-                </h2>
-                <p className="text-gray-600 mb-6">
-                    Every pixel you buy directly contributes to the development of this iOS app. For just $1 per pixel (minimum 10x10 for $100), you can claim a spot on this page, add your own image or video (with Premium), and be part of this journey. Let’s build something amazing together!
-                </p>
-
-                <Link href="/">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg">
-                        Buy Pixels Now
-                    </Button>
-                </Link>
+                {/* 2열: 선택된 카테고리의 내용, 너비 조정 (md:w-3/4) */}
+                <div className="md:w-3/4">
+                    {/* 카드 스타일 콘텐츠 영역: 테두리, 그림자, 약간의 배경색, 패딩 */}
+                    <div
+                        className="p-6 border rounded-lg shadow-md bg-gray-50 transition-opacity duration-300 ease-in-out"
+                        key={selectedCategory} // key를 변경하여 애니메이션 트리거
+                    >
+                        <h2 className="text-3xl font-semibold text-[#0F4C81] mb-4">
+                        {selectedContent?.title || "Select a category"}
+                        </h2>
+                        {/* HTML 문자열을 안전하게 렌더링 */}
+                        <div
+                        className="text-gray-600"
+                        dangerouslySetInnerHTML={{ __html: selectedContent?.content || "No content available." }}
+                        />
+                        {/* Buy Pixels Now 버튼: 2열 하단에 배치, 크기 증가 및 호버 애니메이션 */}
+                        <div className="mt-6">
+                        <Link href="/">
+                            <Button
+                            className="bg-[#0F4C81] hover:bg-[#1A5A96] text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-transform duration-200"
+                            >
+                            Buy Pixels Now
+                            </Button>
+                        </Link>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
     );
