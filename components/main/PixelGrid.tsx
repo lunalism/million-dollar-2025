@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useMemo } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { Grid, GridCellRenderer, ScrollParams } from "react-virtualized";
 import {
   Tooltip,
@@ -17,8 +17,6 @@ const easingFunctions = {
   easeOutQuad: (t: number) => t * (2 - t),
   easeInOutQuad: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
 };
-
-type EasingFunction = (t: number) => number;
 
 type PixelGridProps = {
   purchasedPixels: Pixel[];
@@ -40,7 +38,7 @@ interface CellRendererProps {
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-  isVisible: boolean; // react-virtualized에서 제공
+  isVisible: boolean;
   pixelMap: Record<string, GridPixel>;
   selected: { x: number; y: number; size: number } | null;
   zoomLevel: number;
@@ -91,7 +89,6 @@ const CellRenderer = ({
         onTouchEnd={() => onBlockClick(x, y)}
         className={isSelected ? "bg-blue-200 bg-opacity-30" : ""}
       >
-        {/* 툴팁을 화면에 보이는 블록에만 렌더링 */}
         {isVisible && isPurchased && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -153,21 +150,25 @@ export default function PixelGrid({
   const BLOCK_SIZE = BASE_BLOCK_SIZE * zoomLevel;
   const gridRef = useRef<Grid>(null);
 
-  // purchasedPixels를 해시맵으로 변환 (useMemo로 메모이제이션)
-  const pixelMap = useMemo(() => {
-    const map: Record<string, GridPixel> = {};
-    purchasedPixels.forEach((pixel) => {
-      const key = `${pixel.x}-${pixel.y}`;
-      map[key] = {
-        x: pixel.x,
-        y: pixel.y,
-        purchased: true,
-        owner: pixel.owner,
-        content: pixel.content,
-        purchaseType: pixel.purchaseType,
-      };
-    });
-    return map;
+  // Web Worker를 사용해서 pixelMap 생성
+  const [pixelMap, setPixelMap] = useState<Record<string, GridPixel>>({});
+
+  useEffect(() => {
+    // Web Worker 초기화 (경로 복원)
+    const worker = new Worker("/pixelWorker.js");
+
+    // purchasedPixels를 Worker로 전달
+    worker.postMessage(purchasedPixels);
+
+    // Worker로부터 결과 수신
+    worker.onmessage = (event: MessageEvent) => {
+      setPixelMap(event.data);
+      worker.terminate(); // 작업 완료 후 Worker 종료
+    };
+
+    return () => {
+      worker.terminate(); // 컴포넌트 언마운트 시 Worker 종료
+    };
   }, [purchasedPixels]);
 
   // 부드러운 스크롤 함수

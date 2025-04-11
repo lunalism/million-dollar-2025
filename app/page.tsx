@@ -82,7 +82,7 @@ export default function Home() {
   useEffect(() => {
     const updateGridSize = () => {
       const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
+      // const windowHeight = window.innerHeight;
       const maxWidth = Math.min(windowWidth - 32, GRID_WIDTH);
       const aspectRatio = GRID_WIDTH / GRID_HEIGHT;
       const newWidth = Math.min(maxWidth, windowWidth - 32);

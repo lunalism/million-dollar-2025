@@ -41,7 +41,7 @@ export default function Contact() {
   if (!content) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col py-8">
       <Header activePath={pathname} />
       <section className="flex-1 flex items-center justify-center py-8">
         <div className="max-w-7xl w-full px-4 flex flex-col md:flex-row gap-8">

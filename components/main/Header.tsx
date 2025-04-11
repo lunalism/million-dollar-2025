@@ -9,7 +9,7 @@ type HeaderProps = {
 
 export default function Header({ activePath }: HeaderProps) {
     return (
-        <header className="w-full max-w-7xl mx-auto px-4 flex justify-between items-center mb-8 mt-10">
+        <header className="w-full max-w-7xl mx-auto px-4 flex justify-between items-center mb-8">
         <Link href="/">
             <h1 className="text-3xl font-extrabold text-gray-900">
                 2025 Million Dollar Homepage
