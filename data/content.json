@@ -1,0 +1,29 @@
+{
+  "about": {
+    "whyStarted": "I’m an aspiring entrepreneur working on an iOS app startup to create innovative solutions that make people’s lives easier. However, starting a tech company requires significant funding for development, marketing, and scaling. Inspired by the original Million Dollar Homepage, I launched this 2025 version to raise initial funds for my startup by selling pixels at $1 each.",
+    "vision": "With the funds raised, I plan to build an iOS app that revolutionizes how people interact with technology in their daily lives. The app will focus on [insert app idea or focus, e.g., productivity, education, or social impact], aiming to deliver real value to users worldwide. By purchasing pixels, you’re not just buying a piece of this page—you’re supporting a dream to create something meaningful.",
+    "howHelp": "Every pixel you buy directly contributes to the development of this iOS app. For just $1 per pixel (minimum 100x100 for $10), you can claim a spot on this page, add your own image or video (with Premium), and be part of this journey. Let’s build something amazing together!"
+  },
+  "faq": [
+    {
+      "question": "What is the 2025 Million Dollar Homepage?",
+      "answer": "The 2025 Million Dollar Homepage is a revival of the original concept from 2005, where we sell 1.5 million pixels at $1 each to raise funds for an iOS app startup. You can buy a minimum of 10x10 pixels for $100 and display your own image or video (with Premium)."
+    },
+    {
+      "question": "How does buying pixels help?",
+      "answer": "Every pixel you buy directly supports the development of an innovative iOS app. The funds will be used for development, marketing, and scaling the app to deliver real value to users worldwide."
+    },
+    {
+      "question": "What’s the difference between Basic and Premium?",
+      "answer": "Basic ($100 for 10x10 pixels) allows you to upload a static image. Premium ($150 for 10x10 pixels) includes support for GIFs or videos and highlights your spot on social media."
+    },
+    {
+      "question": "Can I buy more than one 10x10 block?",
+      "answer": "Yes! You can buy as many 10x10 blocks as you’d like, as long as there are available pixels. Each block is sold in 10x10 increments."
+    },
+    {
+      "question": "How long will my pixel stay on the page?",
+      "answer": "Your pixel will remain on the page indefinitely, as long as the site is active. We plan to keep this page as a historical record of our startup journey!"
+    }
+  ]
+}
