@@ -6,16 +6,10 @@ import Header from "@/components/main/Header";
 import PixelGrid from "@/components/main/PixelGrid";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pixel, GridPixel } from "@/lib/types";
+import { Pixel } from "@/lib/types";
 
 
 export default function Home() {
@@ -127,10 +121,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex space-x-2 mb-4">
+        <div className="flex items-center space-x-2 mb-4">
           <Button onClick={handleZoomIn} className="bg-blue-600 hover:bg-blue-700">
             Zoom In
           </Button>
+          <span className="text-sm text-gray-600">
+            Zoom: {zoomLevel.toFixed(1)}x
+          </span>
           <Button onClick={handleZoomOut} className="bg-blue-600 hover:bg-blue-700">
             Zoom Out
           </Button>
