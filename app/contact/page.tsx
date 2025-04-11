@@ -41,7 +41,7 @@ export default function Contact() {
   if (!content) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col py-8">
       <Header activePath={pathname} />
       <section className="flex-1 flex items-center justify-center py-8">
         <div className="max-w-7xl w-full px-4 flex flex-col md:flex-row gap-8">
@@ -81,7 +81,7 @@ export default function Contact() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder=""
-                  className="mt-1 border-t-0 border-l-0 border-r-0 border-b-2 border-gray-300 focus:ring-0 focus:border-blue-500 rounded-none"
+                  className="mt-1 h-50 border-t-0 border-l-0 border-r-0 border-b-2 border-gray-300 focus:ring-0 focus:border-blue-500 rounded-none"
                   rows={4}
                 />
               </div>

@@ -7,6 +7,15 @@ export type Pixel = {
     purchaseType: "basic" | "premium";
 };
 
+export type GridPixel = {
+    x: number;
+    y: number;
+    purchased: boolean;
+    owner?: string;
+    content?: string;
+    purchaseType?: "basic" | "premium";
+  };
+
 export type AboutContent = {
     whyStarted: string;
     vision: string;
