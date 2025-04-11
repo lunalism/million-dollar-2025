@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Pretendard 폰트를 기본 폰트로 설정 */
+html, body {
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

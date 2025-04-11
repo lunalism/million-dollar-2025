@@ -27,3 +27,22 @@ export async function getAboutContent() {
     // 데이터 반환
     return data;
 }
+
+// About 콘텐츠를 업데이트하는 함수
+export async function updateAboutContent(category: string, title: string, content: string) {
+    // about_content 테이블에서 해당 카테고리의 데이터 업데이트
+    const { data, error } = await supabase
+        .from("about_content")
+        .update({ title, content })
+        .eq("category", category)
+        .select();
+
+    // 에러 처리
+    if (error) {
+        console.error("Error updating about content:", error);
+        throw new Error("Failed to update about content");
+    }
+
+    // 업데이트된 데이터 반환
+    return data;
+}
