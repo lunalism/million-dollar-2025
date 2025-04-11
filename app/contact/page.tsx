@@ -9,9 +9,20 @@ import Header from "@/components/main/Header"; // 상단 헤더 컴포넌트
 import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
 import { Input } from "@/components/ui/input"; // 입력 필드 컴포넌트
 import { Textarea } from "@/components/ui/textarea"; // 텍스트 영역 컴포넌트
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; // 아코디언 컴포넌트
-import { getContent } from "@/lib/api"; // 콘텐츠 데이터를 가져오는 API 함수
-import { Content, FAQItem } from "@/lib/types"; // 콘텐츠 및 FAQ 타입 정의
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"; // 아코디언 컴포넌트
+import { getFAQItems } from "@/lib/supabase"; // Supabase에서 FAQ 데이터 가져오기
+
+// FAQ 항목 타입 정의 (faq 테이블 구조에 맞춤)
+interface FAQItem {
+  id: number;
+  question: string;
+  answer: string;
+}
 
 // Contact 페이지 컴포넌트
 export default function Contact() {
@@ -22,18 +33,22 @@ export default function Contact() {
   const [name, setName] = useState(""); // 이름 입력 상태
   const [email, setEmail] = useState(""); // 이메일 입력 상태
   const [message, setMessage] = useState(""); // 메시지 입력 상태
-  const [content, setContent] = useState<Content | null>(null); // 콘텐츠 데이터 상태
+  const [faqItems, setFaqItems] = useState<FAQItem[]>([]); // FAQ 데이터 상태
+  const [isLoading, setIsLoading] = useState(true); // 로딩 상태
 
-  // 콘텐츠 데이터 로드
+  // Supabase에서 FAQ 데이터 로드
   useEffect(() => {
     const loadContent = async () => {
-      // API에서 콘텐츠 데이터 가져오기
-      const data = await getContent();
-      // API 응답이 string일 경우 Content 타입으로 캐스팅 (임시 해결)
-      // TODO: /api/content 엔드포인트가 실제로 Content 타입 데이터를 반환하도록 수정 필요
-      const parsedData = typeof data === "string" ? JSON.parse(data) as Content : data;
-      // 콘텐츠 상태 업데이트
-      setContent(parsedData);
+      setIsLoading(true); // 로딩 시작
+      try {
+        // Supabase에서 FAQ 데이터 가져오기
+        const data = await getFAQItems();
+        setFaqItems(data);
+      } catch (error) {
+        console.error("Failed to load FAQ content:", error);
+      } finally {
+        setIsLoading(false); // 로딩 종료
+      }
     };
     loadContent();
   }, []); // 컴포넌트 마운트 시 실행
@@ -49,8 +64,14 @@ export default function Contact() {
     setMessage("");
   };
 
-  // 콘텐츠 데이터가 로드되지 않았을 때 로딩 표시
-  if (!content) return <div>Loading...</div>;
+  // 로딩 중일 때 표시
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <p className="text-lg text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     // 메인 레이아웃: 최소 높이 화면 전체, 배경 흰색, 세로 방향 플렉스, 상하 패딩 8
@@ -122,10 +143,10 @@ export default function Contact() {
           <div className="flex-1">
             {/* 섹션 제목 */}
             <h2 className="text-5xl font-bold text-gray-900 mb-2">
-              Contact <span className="text-blue-500">Us</span>
+              Contact <span className="text-[#0F4C81]">Us</span>
             </h2>
             {/* 구분선 */}
-            <div className="w-16 h-1 bg-blue-500 mb-6"></div>
+            <div className="w-16 h-1 bg-[#0F4C81] mb-6"></div>
             {/* 안내 문구 */}
             <p className="text-gray-600 mb-8">
               It is very important for us to keep in touch with you, so we are always ready to answer any question that interests you. Shoot!
@@ -137,10 +158,12 @@ export default function Contact() {
             </h3>
             {/* FAQ 아코디언 */}
             <Accordion type="single" collapsible className="w-full">
-              {content.faq.map((item: FAQItem, index: number) => (
-                <AccordionItem key={index} value={`item-${index}`}>
+              {faqItems.map((item) => (
+                <AccordionItem key={item.id} value={`item-${item.id}`}>
                   <AccordionTrigger>{item.question}</AccordionTrigger>
-                  <AccordionContent>{item.answer}</AccordionContent>
+                  <AccordionContent>
+                    <div dangerouslySetInnerHTML={{ __html: item.answer }} />
+                  </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
