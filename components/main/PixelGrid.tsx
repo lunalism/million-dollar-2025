@@ -1,7 +1,13 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { Grid, GridCellRenderer, ScrollParams } from "react-virtualized";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { GridPixel, Pixel } from "@/lib/types";
+import debounce from "lodash/debounce";
 
 type PixelGridProps = {
   purchasedPixels: Pixel[];
@@ -16,12 +22,59 @@ type PixelGridProps = {
   gridHeight: number;
 };
 
-export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focusedBlock, onBlockClick, onGridUpdate, onScroll, gridWidth, gridHeight }: PixelGridProps) {
+export default function PixelGrid({
+  purchasedPixels,
+  selected,
+  zoomLevel,
+  focusedBlock,
+  scrollPosition,
+  onBlockClick,
+  onGridUpdate,
+  onScroll,
+  gridWidth,
+  gridHeight,
+}: PixelGridProps) {
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
   const BASE_BLOCK_SIZE = 10;
   const BLOCK_SIZE = BASE_BLOCK_SIZE * zoomLevel;
   const gridRef = useRef<Grid>(null);
+
+  // 부드러운 스크롤 함수
+  const smoothScrollTo = useCallback(
+    (targetLeft: number, targetTop: number, duration: number = 300) => {
+      if (!gridRef.current) return;
+
+      const startLeft = scrollPosition.scrollLeft;
+      const startTop = scrollPosition.scrollTop;
+      const distanceLeft = targetLeft - startLeft;
+      const distanceTop = targetTop - startTop;
+      const startTime = performance.now();
+
+      const animateScroll = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = (t: number) => t * t * (3 - 2 * t);
+
+        const newLeft = startLeft + distanceLeft * ease(progress);
+        const newTop = startTop + distanceTop * ease(progress);
+
+        if (gridRef.current) {
+          gridRef.current.scrollToPosition({
+            scrollLeft: newLeft,
+            scrollTop: newTop,
+          });
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll);
+        }
+      };
+
+      requestAnimationFrame(animateScroll);
+    },
+    [scrollPosition]
+  );
 
   // purchasedPixels를 기반으로 블록 상태 확인
   const getPixelAt = (x: number, y: number): GridPixel => {
@@ -32,7 +85,7 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
         y >= p.y &&
         y < p.y + p.size &&
         x === p.x &&
-        y === p.y // 10x10 블록의 시작 좌표만 확인
+        y === p.y
     );
     return pixel
       ? {
@@ -46,6 +99,11 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
       : { x, y, purchased: false };
   };
 
+  // 디바운싱된 onScroll 핸들러 (useCallback 제거)
+  const debouncedOnScroll = debounce((scrollInfo: ScrollParams) => {
+    onScroll(scrollInfo);
+  }, 100);
+
   // 줌 레벨 변경 시 스크롤 위치 조정
   useEffect(() => {
     if (gridRef.current && focusedBlock) {
@@ -58,16 +116,13 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
       const newScrollLeft = newX - viewportWidth / 2 + blockSize / 2;
       const newScrollTop = newY - viewportHeight / 2 + blockSize / 2;
 
-      gridRef.current.scrollToPosition({
-        scrollLeft: Math.max(0, newScrollLeft),
-        scrollTop: Math.max(0, newScrollTop),
-      });
+      smoothScrollTo(Math.max(0, newScrollLeft), Math.max(0, newScrollTop));
     }
     if (gridRef.current) {
       gridRef.current.recomputeGridSize();
     }
     onGridUpdate();
-  }, [zoomLevel, focusedBlock, onGridUpdate, gridWidth, gridHeight]);
+  }, [zoomLevel, focusedBlock, onGridUpdate, gridWidth, gridHeight, smoothScrollTo]);
 
   const cellRenderer: GridCellRenderer = ({ columnIndex, rowIndex, style }) => {
     const x = columnIndex * BASE_BLOCK_SIZE;
@@ -137,9 +192,9 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
         rowHeight={BLOCK_SIZE}
         cellRenderer={cellRenderer}
         style={{ overflowX: "auto", overflowY: "auto" }}
-        overscanRowCount={10}
-        overscanColumnCount={10}
-        onScroll={onScroll}
+        overscanRowCount={5}
+        overscanColumnCount={5}
+        onScroll={debouncedOnScroll}
       />
     </div>
   );
