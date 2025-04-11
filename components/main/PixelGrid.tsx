@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, memo } from "react";
 import { Grid, GridCellRenderer, ScrollParams } from "react-virtualized";
 import {
   Tooltip,
@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/tooltip";
 import { GridPixel, Pixel } from "@/lib/types";
 import debounce from "lodash/debounce";
-import { memo } from "react";
 
 // 이징 함수 정의
 const easingFunctions = {
@@ -21,7 +20,7 @@ const easingFunctions = {
 // type EasingFunction = (t: number) => number;
 
 type PixelGridProps = {
-  purchasedPixels: Pixel[];
+  pixelMap: Record<string, Pixel>;
   selected: { x: number; y: number; size: number } | null;
   zoomLevel: number;
   focusedBlock: { x: number; y: number } | null;
@@ -41,7 +40,7 @@ interface CellRendererProps {
   rowIndex: number;
   style: React.CSSProperties;
   isVisible: boolean;
-  pixelMap: Record<string, GridPixel>;
+  pixelMap: Record<string, Pixel>;
   selected: { x: number; y: number; size: number } | null;
   zoomLevel: number;
   onBlockClick: (x: number, y: number) => void;
@@ -62,9 +61,19 @@ const CellRenderer = ({
 
   const x = columnIndex * BASE_BLOCK_SIZE;
   const y = rowIndex * BASE_BLOCK_SIZE;
-  const pixel = pixelMap[`${x}-${y}`] || { x, y, purchased: false };
+  const pixel = pixelMap[`${x}-${y}`];
+  const gridPixel: GridPixel = pixel
+    ? {
+        x,
+        y,
+        purchased: true,
+        owner: pixel.owner,
+        content: pixel.content,
+        purchaseType: pixel.purchaseType,
+      }
+    : { x, y, purchased: false };
 
-  const isPurchased = pixel.purchased;
+  const isPurchased = gridPixel.purchased;
   const isSelected =
     selected &&
     x === selected.x &&
@@ -78,7 +87,7 @@ const CellRenderer = ({
     height: BLOCK_SIZE,
     backgroundColor: isPurchased ? "blue" : "#e5e7eb",
     border: isSelected ? "2px solid #3b82f6" : "none",
-    backgroundImage: isPurchased && pixel.content ? `url(${pixel.content})` : "none",
+    backgroundImage: isPurchased && gridPixel.content ? `url(${gridPixel.content})` : "none",
     backgroundSize: "cover",
     backgroundPosition: "center",
   };
@@ -101,13 +110,13 @@ const CellRenderer = ({
                 <strong>Position:</strong> ({x}, {y})
               </p>
               <p>
-                <strong>Owner:</strong> {pixel.owner || "Unknown"}
+                <strong>Owner:</strong> {gridPixel.owner || "Unknown"}
               </p>
               <p>
-                <strong>Content:</strong> {pixel.content || "No content"}
+                <strong>Content:</strong> {gridPixel.content || "No content"}
               </p>
               <p>
-                <strong>Type:</strong> {pixel.purchaseType || "basic"}
+                <strong>Type:</strong> {gridPixel.purchaseType || "basic"}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -132,135 +141,134 @@ const MemoizedCellRenderer = memo(
     prevProps.onBlockClick === nextProps.onBlockClick
 );
 
-export default function PixelGrid({
-  purchasedPixels,
-  selected,
-  zoomLevel,
-  focusedBlock,
-  scrollPosition,
-  onBlockClick,
-  onGridUpdate,
-  onScroll,
-  gridWidth,
-  gridHeight,
-  scrollDuration = 300,
-  scrollEasing = "easeInOutQuad",
-}: PixelGridProps) {
-  const GRID_WIDTH = 1500;
-  const GRID_HEIGHT = 1000;
-  const BASE_BLOCK_SIZE = 10;
-  const BLOCK_SIZE = BASE_BLOCK_SIZE * zoomLevel;
-  const gridRef = useRef<Grid>(null);
+// PixelGrid 컴포넌트 메모이제이션
+const PixelGrid = memo(
+  ({
+    pixelMap,
+    selected,
+    zoomLevel,
+    focusedBlock,
+    scrollPosition,
+    onBlockClick,
+    onGridUpdate,
+    onScroll,
+    gridWidth,
+    gridHeight,
+    scrollDuration = 300,
+    scrollEasing = "easeInOutQuad",
+  }: PixelGridProps) => {
+    const GRID_WIDTH = 1500;
+    const GRID_HEIGHT = 1000;
+    const BASE_BLOCK_SIZE = 10;
+    const BLOCK_SIZE = BASE_BLOCK_SIZE * zoomLevel;
+    const gridRef = useRef<Grid>(null);
 
-  // Web Worker를 사용해서 pixelMap 생성
-  const [pixelMap, setPixelMap] = useState<Record<string, GridPixel>>({});
+    // 부드러운 스크롤 함수
+    const smoothScrollTo = useCallback(
+      (targetLeft: number, targetTop: number, duration: number = scrollDuration) => {
+        if (!gridRef.current) return;
 
-  useEffect(() => {
-    // Web Worker 초기화
-    const worker = new Worker("/pixelWorker.js");
+        const startLeft = scrollPosition.scrollLeft;
+        const startTop = scrollPosition.scrollTop;
+        const distanceLeft = targetLeft - startLeft;
+        const distanceTop = targetTop - startTop;
+        const startTime = performance.now();
+        const ease = easingFunctions[scrollEasing] || easingFunctions.easeInOutQuad;
 
-    // purchasedPixels를 Worker로 전달
-    worker.postMessage(purchasedPixels);
+        const animateScroll = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
 
-    // Worker로부터 결과 수신
-    worker.onmessage = (event: MessageEvent) => {
-      setPixelMap(event.data);
-      worker.terminate(); // 작업 완료 후 Worker 종료
-    };
+          const newLeft = startLeft + distanceLeft * ease(progress);
+          const newTop = startTop + distanceTop * ease(progress);
 
-    return () => {
-      worker.terminate(); // 컴포넌트 언마운트 시 Worker 종료
-    };
-  }, [purchasedPixels]);
+          if (gridRef.current) {
+            gridRef.current.scrollToPosition({
+              scrollLeft: newLeft,
+              scrollTop: newTop,
+            });
+          }
 
-  // 부드러운 스크롤 함수
-  const smoothScrollTo = useCallback(
-    (targetLeft: number, targetTop: number, duration: number = scrollDuration) => {
-      if (!gridRef.current) return;
+          if (progress < 1) {
+            requestAnimationFrame(animateScroll);
+          }
+        };
 
-      const startLeft = scrollPosition.scrollLeft;
-      const startTop = scrollPosition.scrollTop;
-      const distanceLeft = targetLeft - startLeft;
-      const distanceTop = targetTop - startTop;
-      const startTime = performance.now();
-      const ease = easingFunctions[scrollEasing] || easingFunctions.easeInOutQuad;
+        requestAnimationFrame(animateScroll);
+      },
+      [scrollPosition, scrollDuration, scrollEasing]
+    );
 
-      const animateScroll = (currentTime: number) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+    // 디바운싱된 onScroll 핸들러
+    const debouncedOnScroll = debounce((scrollInfo: ScrollParams) => {
+      onScroll(scrollInfo);
+    }, 100);
 
-        const newLeft = startLeft + distanceLeft * ease(progress);
-        const newTop = startTop + distanceTop * ease(progress);
+    // 줌 레벨 변경 시 스크롤 위치 조정
+    useEffect(() => {
+      if (gridRef.current && focusedBlock) {
+        const { x, y } = focusedBlock;
+        const newX = x * zoomLevel;
+        const newY = y * zoomLevel;
+        const viewportWidth = gridWidth;
+        const viewportHeight = gridHeight;
+        const blockSize = BASE_BLOCK_SIZE * zoomLevel;
+        const newScrollLeft = newX - viewportWidth / 2 + blockSize / 2;
+        const newScrollTop = newY - viewportHeight / 2 + blockSize / 2;
 
-        if (gridRef.current) {
-          gridRef.current.scrollToPosition({
-            scrollLeft: newLeft,
-            scrollTop: newTop,
-          });
-        }
+        smoothScrollTo(Math.max(0, newScrollLeft), Math.max(0, newScrollTop));
+      }
+      if (gridRef.current) {
+        gridRef.current.recomputeGridSize();
+      }
+      onGridUpdate();
+    }, [zoomLevel, focusedBlock, onGridUpdate, gridWidth, gridHeight, smoothScrollTo]);
 
-        if (progress < 1) {
-          requestAnimationFrame(animateScroll);
-        }
-      };
-
-      requestAnimationFrame(animateScroll);
-    },
-    [scrollPosition, scrollDuration, scrollEasing]
-  );
-
-  // 디바운싱된 onScroll 핸들러
-  const debouncedOnScroll = debounce((scrollInfo: ScrollParams) => {
-    onScroll(scrollInfo);
-  }, 100);
-
-  // 줌 레벨 변경 시 스크롤 위치 조정
-  useEffect(() => {
-    if (gridRef.current && focusedBlock) {
-      const { x, y } = focusedBlock;
-      const newX = x * zoomLevel;
-      const newY = y * zoomLevel;
-      const viewportWidth = gridWidth;
-      const viewportHeight = gridHeight;
-      const blockSize = BASE_BLOCK_SIZE * zoomLevel;
-      const newScrollLeft = newX - viewportWidth / 2 + blockSize / 2;
-      const newScrollTop = newY - viewportHeight / 2 + blockSize / 2;
-
-      smoothScrollTo(Math.max(0, newScrollLeft), Math.max(0, newScrollTop));
-    }
-    if (gridRef.current) {
-      gridRef.current.recomputeGridSize();
-    }
-    onGridUpdate();
-  }, [zoomLevel, focusedBlock, onGridUpdate, gridWidth, gridHeight, smoothScrollTo]);
-
-  const cellRenderer: GridCellRenderer = ({ key, ...props }) => (
-    <MemoizedCellRenderer
-      key={key}
-      {...props}
-      pixelMap={pixelMap}
-      selected={selected}
-      zoomLevel={zoomLevel}
-      onBlockClick={onBlockClick}
-    />
-  );
-
-  return (
-    <div className="relative border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
-      <Grid
-        ref={gridRef}
-        width={gridWidth}
-        height={gridHeight}
-        columnCount={GRID_WIDTH / BASE_BLOCK_SIZE}
-        rowCount={GRID_HEIGHT / BASE_BLOCK_SIZE}
-        columnWidth={BLOCK_SIZE}
-        rowHeight={BLOCK_SIZE}
-        cellRenderer={cellRenderer}
-        style={{ overflowX: "auto", overflowY: "auto" }}
-        overscanRowCount={2} // 오버스캔 값 조정 (5 → 2)
-        overscanColumnCount={2} // 오버스캔 값 조정 (5 → 2)
-        onScroll={debouncedOnScroll}
+    const cellRenderer: GridCellRenderer = ({ key, ...props }) => (
+      <MemoizedCellRenderer
+        key={key}
+        {...props}
+        pixelMap={pixelMap}
+        selected={selected}
+        zoomLevel={zoomLevel}
+        onBlockClick={onBlockClick}
       />
-    </div>
-  );
-}
+    );
+
+    return (
+      <div className="relative border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
+        <Grid
+          ref={gridRef}
+          width={gridWidth}
+          height={gridHeight}
+          columnCount={GRID_WIDTH / BASE_BLOCK_SIZE}
+          rowCount={GRID_HEIGHT / BASE_BLOCK_SIZE}
+          columnWidth={BLOCK_SIZE}
+          rowHeight={BLOCK_SIZE}
+          cellRenderer={cellRenderer}
+          style={{ overflowX: "auto", overflowY: "auto" }}
+          overscanRowCount={2}
+          overscanColumnCount={2}
+          onScroll={debouncedOnScroll}
+        />
+      </div>
+    );
+  },
+  (prevProps, nextProps) =>
+    prevProps.pixelMap === nextProps.pixelMap &&
+    prevProps.selected === nextProps.selected &&
+    prevProps.zoomLevel === nextProps.zoomLevel &&
+    prevProps.focusedBlock === nextProps.focusedBlock &&
+    prevProps.scrollPosition === nextProps.scrollPosition &&
+    prevProps.onBlockClick === nextProps.onBlockClick &&
+    prevProps.onGridUpdate === nextProps.onGridUpdate &&
+    prevProps.onScroll === nextProps.onScroll &&
+    prevProps.gridWidth === nextProps.gridWidth &&
+    prevProps.gridHeight === nextProps.gridHeight &&
+    prevProps.scrollDuration === nextProps.scrollDuration &&
+    prevProps.scrollEasing === nextProps.scrollEasing
+);
+
+PixelGrid.displayName = "PixelGrid";
+
+export default PixelGrid;

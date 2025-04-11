@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useReducer } from "react";
 import { usePathname } from "next/navigation";
-import Image from "next/image"; // next/image에서 Image 컴포넌트 임포트
+import Image from "next/image";
 import Header from "@/components/main/Header";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,49 @@ import { Pixel } from "@/lib/types";
 import PixelGrid from "@/components/main/PixelGrid";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
+// purchasedPixels 상태를 해시맵으로 관리하기 위한 타입
+interface PixelMap {
+  [key: string]: Pixel;
+}
+
+// useReducer의 상태와 액션 타입 정의
+interface PixelState {
+  pixelMap: PixelMap;
+  pixelList: Pixel[];
+}
+
+type PixelAction =
+  | { type: "SET_PIXELS"; pixels: Pixel[] }
+  | { type: "ADD_PIXEL"; pixel: Pixel };
+
+const pixelReducer = (state: PixelState, action: PixelAction): PixelState => {
+  switch (action.type) {
+    case "SET_PIXELS": {
+      const newPixelMap: PixelMap = {};
+      action.pixels.forEach((pixel) => {
+        const key = `${pixel.x}-${pixel.y}`;
+        newPixelMap[key] = pixel;
+      });
+      return { pixelMap: newPixelMap, pixelList: action.pixels };
+    }
+    case "ADD_PIXEL": {
+      const key = `${action.pixel.x}-${action.pixel.y}`;
+      const newPixelMap = { ...state.pixelMap, [key]: action.pixel };
+      const newPixelList = [...state.pixelList, action.pixel];
+      return { pixelMap: newPixelMap, pixelList: newPixelList };
+    }
+    default:
+      return state;
+  }
+};
+
 export default function Home() {
   const pathname = usePathname();
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
   const BLOCK_SIZE = 10;
 
-  const [purchasedPixels, setPurchasedPixels] = useState<Pixel[]>([]);
+  const [state, dispatch] = useReducer(pixelReducer, { pixelMap: {}, pixelList: [] });
   const [selected, setSelected] = useState<{ x: number; y: number; size: number } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic");
@@ -44,13 +80,14 @@ export default function Home() {
       try {
         const cachedPixels = localStorage.getItem("purchasedPixels");
         if (cachedPixels) {
-          setPurchasedPixels(JSON.parse(cachedPixels));
+          const pixels = JSON.parse(cachedPixels);
+          dispatch({ type: "SET_PIXELS", pixels });
           setIsLoading(false);
           return;
         }
 
         const savedPixels: Pixel[] = await getPixels();
-        setPurchasedPixels(savedPixels);
+        dispatch({ type: "SET_PIXELS", pixels: savedPixels });
         localStorage.setItem("purchasedPixels", JSON.stringify(savedPixels));
       } catch (error) {
         console.error("Failed to load pixels:", error);
@@ -64,9 +101,9 @@ export default function Home() {
   // 새로고침 또는 페이지 종료 시 데이터 저장
   useEffect(() => {
     const handleBeforeUnload = async () => {
-      if (purchasedPixels.length > 0) {
-        await savePixels(purchasedPixels);
-        localStorage.setItem("purchasedPixels", JSON.stringify(purchasedPixels));
+      if (state.pixelList.length > 0) {
+        await savePixels(state.pixelList);
+        localStorage.setItem("purchasedPixels", JSON.stringify(state.pixelList));
       }
     };
 
@@ -76,7 +113,7 @@ export default function Home() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       handleBeforeUnload();
     };
-  }, [purchasedPixels]);
+  }, [state.pixelList]);
 
   // 그리드 크기 동적 조정
   useEffect(() => {
@@ -97,7 +134,7 @@ export default function Home() {
     return () => window.removeEventListener("resize", updateGridSize);
   }, []);
 
-  const soldPixels = purchasedPixels.reduce((total, pixel) => total + pixel.size * pixel.size, 0);
+  const soldPixels = state.pixelList.reduce((total, pixel) => total + pixel.size * pixel.size, 0);
   const totalPixels = GRID_WIDTH * GRID_HEIGHT;
   const soldPercentage = ((soldPixels / totalPixels) * 100).toFixed(2);
 
@@ -117,8 +154,7 @@ export default function Home() {
         content: contentUrl,
         purchaseType,
       };
-      const updatedPixels = [...purchasedPixels, newPixel];
-      setPurchasedPixels(updatedPixels);
+      dispatch({ type: "ADD_PIXEL", pixel: newPixel });
 
       setIsDialogOpen(false);
       setSelected(null);
@@ -214,7 +250,7 @@ export default function Home() {
             <TransformComponent>
               <div style={{ width: gridWidth, height: gridHeight }}>
                 <PixelGrid
-                  purchasedPixels={purchasedPixels}
+                  pixelMap={state.pixelMap}
                   selected={selected}
                   zoomLevel={zoomLevel}
                   focusedBlock={focusedBlock}
@@ -231,15 +267,14 @@ export default function Home() {
             </TransformComponent>
           </TransformWrapper>
 
-          {/* example.png 이미지를 가운데에 오버레이로 추가 (Image 컴포넌트 사용) */}
           <Image
             src="/example.png"
             alt="Example Image"
-            width={300} // 원본 크기 지정
-            height={300} // 원본 크기 지정
+            width={300}
+            height={300}
             className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 w-[300px] h-[300px] sm:w-[200px] sm:h-[200px] object-contain"
-            quality={75} // 이미지 품질 설정 (기본값: 75)
-            priority // LCP 개선을 위해 우선 로드
+            quality={75}
+            priority
           />
         </div>
 
