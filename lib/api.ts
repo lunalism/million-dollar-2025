@@ -1,7 +1,7 @@
 // lib/api.ts
 
 // 필요한 타입 임포트
-import { Pixel } from "./types"; // 픽셀 타입 정의
+import { Pixel, Content } from "./types"; // 픽셀 및 콘텐츠 타입 정의
 
 // 픽셀 데이터를 가져오는 함수
 export async function getPixels(): Promise<Pixel[]> {
@@ -32,20 +32,21 @@ export async function savePixels(pixels: Pixel[]): Promise<Pixel[]> {
 }
 
 // 콘텐츠 데이터를 가져오는 함수
-export async function getContent(): Promise<string> {
+export async function getContent(): Promise<Content> {
     // /api/content 엔드포인트에서 콘텐츠 데이터 가져오기
     const res = await fetch("/api/content");
 
     // 응답이 실패하면 에러 발생
     if (!res.ok) throw new Error("Failed to fetch content");
 
-    // JSON 응답을 파싱하여 반환
+    // JSON 응답을 파싱하여 Content 타입으로 반환
     return res.json();
 }
 
 // 콘텐츠 데이터를 저장하는 함수
-export async function saveContent(content: string): Promise<string> {
+export async function saveContent(content: Content): Promise<Content> {
     // /api/content 엔드포인트에 POST 요청으로 콘텐츠 데이터 저장
+    // 변경: 인자 타입을 string에서 Content로 수정 (2025-04-11)
     const res = await fetch("/api/content", {
         method: "POST", // POST 메서드 사용
         headers: { "Content-Type": "application/json" }, // JSON 형식 헤더 설정
