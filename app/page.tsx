@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pixel } from "@/lib/types";
 import PixelGrid from "@/components/main/PixelGrid";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import debounce from "lodash/debounce";
 
 // purchasedPixels 상태를 해시맵으로 관리하기 위한 타입
 interface PixelMap {
@@ -28,6 +29,7 @@ interface PixelMap {
 interface PixelState {
   pixelMap: PixelMap;
   pixelList: Pixel[];
+  changedPixels: Pixel[];
 }
 
 type PixelAction =
@@ -42,13 +44,14 @@ const pixelReducer = (state: PixelState, action: PixelAction): PixelState => {
         const key = `${pixel.x}-${pixel.y}`;
         newPixelMap[key] = pixel;
       });
-      return { pixelMap: newPixelMap, pixelList: action.pixels };
+      return { pixelMap: newPixelMap, pixelList: action.pixels, changedPixels: [] };
     }
     case "ADD_PIXEL": {
       const key = `${action.pixel.x}-${action.pixel.y}`;
       const newPixelMap = { ...state.pixelMap, [key]: action.pixel };
       const newPixelList = [...state.pixelList, action.pixel];
-      return { pixelMap: newPixelMap, pixelList: newPixelList };
+      const newChangedPixels = [...state.changedPixels, action.pixel];
+      return { pixelMap: newPixelMap, pixelList: newPixelList, changedPixels: newChangedPixels };
     }
     default:
       return state;
@@ -61,7 +64,7 @@ export default function Home() {
   const GRID_HEIGHT = 1000;
   const BLOCK_SIZE = 10;
 
-  const [state, dispatch] = useReducer(pixelReducer, { pixelMap: {}, pixelList: [] });
+  const [state, dispatch] = useReducer(pixelReducer, { pixelMap: {}, pixelList: [], changedPixels: [] });
   const [selected, setSelected] = useState<{ x: number; y: number; size: number } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic");
@@ -98,12 +101,45 @@ export default function Home() {
     loadPixels();
   }, []);
 
-  // 새로고침 또는 페이지 종료 시 데이터 저장
+  // 상태 변경 시 디바운싱된 저장 호출
+  useEffect(() => {
+    const saveToLocalStorage = debounce((pixelList: Pixel[]) => {
+      localStorage.setItem("purchasedPixels", JSON.stringify(pixelList));
+    }, 1000);
+
+    const saveToApi = debounce(async (changedPixels: Pixel[]) => {
+      if (changedPixels.length > 0) {
+        await savePixels(changedPixels);
+      }
+    }, 1000);
+
+    saveToLocalStorage(state.pixelList);
+    saveToApi(state.changedPixels);
+
+    return () => {
+      saveToLocalStorage.cancel();
+      saveToApi.cancel();
+    };
+  }, [state.pixelList, state.changedPixels]);
+
+  // 페이지 종료 시 최종 저장
   useEffect(() => {
     const handleBeforeUnload = async () => {
       if (state.pixelList.length > 0) {
-        await savePixels(state.pixelList);
+        const saveToLocalStorage = debounce((pixelList: Pixel[]) => {
+          localStorage.setItem("purchasedPixels", JSON.stringify(pixelList));
+        }, 1000);
+
+        const saveToApi = debounce(async (changedPixels: Pixel[]) => {
+          if (changedPixels.length > 0) {
+            await savePixels(changedPixels);
+          }
+        }, 1000);
+
+        saveToLocalStorage.cancel();
+        saveToApi.cancel();
         localStorage.setItem("purchasedPixels", JSON.stringify(state.pixelList));
+        await savePixels(state.changedPixels);
       }
     };
 
@@ -113,7 +149,7 @@ export default function Home() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       handleBeforeUnload();
     };
-  }, [state.pixelList]);
+  }, [state.pixelList, state.changedPixels]);
 
   // 그리드 크기 동적 조정
   useEffect(() => {
