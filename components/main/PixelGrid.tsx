@@ -9,6 +9,16 @@ import {
 import { GridPixel, Pixel } from "@/lib/types";
 import debounce from "lodash/debounce";
 
+// 이징 함수 정의
+const easingFunctions = {
+  linear: (t: number) => t,
+  easeInQuad: (t: number) => t * t,
+  easeOutQuad: (t: number) => t * (2 - t),
+  easeInOutQuad: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+};
+
+type EasingFunction = (t: number) => number;
+
 type PixelGridProps = {
   purchasedPixels: Pixel[];
   selected: { x: number; y: number; size: number } | null;
@@ -20,6 +30,8 @@ type PixelGridProps = {
   onScroll: (scrollInfo: ScrollParams) => void;
   gridWidth: number;
   gridHeight: number;
+  scrollDuration?: number; // 지속 시간 prop 추가
+  scrollEasing?: keyof typeof easingFunctions; // 이징 함수 prop 추가
 };
 
 export default function PixelGrid({
@@ -33,6 +45,8 @@ export default function PixelGrid({
   onScroll,
   gridWidth,
   gridHeight,
+  scrollDuration = 300, // 기본값 300ms
+  scrollEasing = "easeInOutQuad", // 기본값 easeInOutQuad
 }: PixelGridProps) {
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
@@ -42,7 +56,7 @@ export default function PixelGrid({
 
   // 부드러운 스크롤 함수
   const smoothScrollTo = useCallback(
-    (targetLeft: number, targetTop: number, duration: number = 300) => {
+    (targetLeft: number, targetTop: number, duration: number = scrollDuration) => {
       if (!gridRef.current) return;
 
       const startLeft = scrollPosition.scrollLeft;
@@ -50,11 +64,11 @@ export default function PixelGrid({
       const distanceLeft = targetLeft - startLeft;
       const distanceTop = targetTop - startTop;
       const startTime = performance.now();
+      const ease = easingFunctions[scrollEasing] || easingFunctions.easeInOutQuad;
 
       const animateScroll = (currentTime: number) => {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        const ease = (t: number) => t * t * (3 - 2 * t);
 
         const newLeft = startLeft + distanceLeft * ease(progress);
         const newTop = startTop + distanceTop * ease(progress);
@@ -73,7 +87,7 @@ export default function PixelGrid({
 
       requestAnimationFrame(animateScroll);
     },
-    [scrollPosition]
+    [scrollPosition, scrollDuration, scrollEasing]
   );
 
   // purchasedPixels를 기반으로 블록 상태 확인
@@ -99,7 +113,7 @@ export default function PixelGrid({
       : { x, y, purchased: false };
   };
 
-  // 디바운싱된 onScroll 핸들러 (useCallback 제거)
+  // 디바운싱된 onScroll 핸들러
   const debouncedOnScroll = debounce((scrollInfo: ScrollParams) => {
     onScroll(scrollInfo);
   }, 100);

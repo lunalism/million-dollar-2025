@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/main/Header";
-import PixelGrid from "@/components/main/PixelGrid";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pixel } from "@/lib/types";
+import PixelGrid from "@/components/main/PixelGrid";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 export default function Home() {
@@ -209,6 +209,8 @@ export default function Home() {
                 onScroll={handleScroll}
                 gridWidth={gridWidth}
                 gridHeight={gridHeight}
+                scrollDuration={500} // 지속 시간 설정 (500ms)
+                scrollEasing="easeOutQuad" // 이징 함수 설정
               />
             </div>
           </TransformComponent>
