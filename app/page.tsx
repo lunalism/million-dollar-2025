@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/main/Header";
+import PixelGrid from "@/components/main/PixelGrid";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,131 +15,98 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pixel } from "@/lib/types";
+import { Pixel, GridPixel } from "@/lib/types";
 
-type GridPixel = {
-  x: number;
-  y: number;
-  purchased: boolean;
-  owner?: string;
-  content?: string;
-  purchaseType?: "basic" | "premium";
-};
 
 export default function Home() {
   const pathname = usePathname();
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
+  const BLOCK_SIZE = 10;
 
-  const [grid, setGrid] = useState<GridPixel[][]>(() => {
-    const initialGrid: GridPixel[][] = [];
-    for (let x = 0; x < GRID_WIDTH; x++) {
-      initialGrid[x] = [];
-      for (let y = 0; y < GRID_HEIGHT; y++) {
-        initialGrid[x][y] = { x, y, purchased: false };
-      }
-    }
-    return initialGrid;
-  });
+  const [purchasedPixels, setPurchasedPixels] = useState<Pixel[]>([]);
   const [selected, setSelected] = useState<{ x: number; y: number; size: number } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic");
   const [contentUrl, setContentUrl] = useState("");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 캔버스 렌더링 함수
-  const renderCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        grid.forEach((row) =>
-          row.forEach((pixel) => {
-            ctx.fillStyle = pixel.purchased ? "blue" : "#e5e7eb";
-            ctx.fillRect(pixel.x, pixel.y, 1, 1);
-            if (pixel.content && pixel.purchased) {
-              const img = new Image();
-              img.src = pixel.content;
-              img.onload = () => {
-                ctx.drawImage(img, pixel.x, pixel.y, 10, 10);
-              };
-            }
-          })
-        );
-      }
-    }
-  }, [grid]);
-
-  // 초기 픽셀 데이터 로드
+  // 초기 픽셀 데이터 로드 (페이지 로드 시 한 번만 호출)
   useEffect(() => {
     const loadPixels = async () => {
+      setIsLoading(true);
       const savedPixels: Pixel[] = await getPixels();
-      const newGrid = [...grid];
-      savedPixels.forEach((pixel) => {
-        for (let i = pixel.x; i < pixel.x + pixel.size; i++) {
-          for (let j = pixel.y; j < pixel.y + pixel.size; j++) {
-            newGrid[i][j] = {
-              ...newGrid[i][j],
-              purchased: true,
-              owner: pixel.owner,
-              content: pixel.content,
-              purchaseType: pixel.purchaseType,
-            };
-          }
-        }
-      });
-      setGrid(newGrid);
+      setPurchasedPixels(savedPixels);
+      setIsLoading(false);
     };
     loadPixels();
-  }, [grid]); // grid는 의존성에서 제외, 초기 로드 시에만 실행
+  }, []);
 
-  // 캔버스 렌더링
+  // 새로고침 또는 페이지 종료 시 데이터 저장
   useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas]); // renderCanvas는 grid에 의존하므로 의존성 배열에 포함
+    const handleBeforeUnload = async () => {
+      if (purchasedPixels.length > 0) {
+        await savePixels(purchasedPixels);
+      }
+    };
 
-  const soldPixels = grid.flat().filter((pixel) => pixel.purchased).length;
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      handleBeforeUnload();
+    };
+  }, [purchasedPixels]);
+
+  const soldPixels = purchasedPixels.reduce((total, pixel) => total + pixel.size * pixel.size, 0);
   const totalPixels = GRID_WIDTH * GRID_HEIGHT;
   const soldPercentage = ((soldPixels / totalPixels) * 100).toFixed(2);
 
-  const handleClick = (x: number, y: number) => {
-    setSelected({ x, y, size: 10 });
+  const handleBlockClick = (x: number, y: number) => {
+    setSelected({ x, y, size: BLOCK_SIZE });
     setIsDialogOpen(true);
   };
 
   const handlePurchase = async () => {
     if (selected) {
       console.log(`Purchased: (${selected.x}, ${selected.y}), Type: ${purchaseType}, Content: ${contentUrl}`);
-      const newGrid = [...grid];
-      for (let i = selected.x; i < selected.x + selected.size; i++) {
-        for (let j = selected.y; j < selected.y + selected.size; j++) {
-          newGrid[i][j] = {
-            ...newGrid[i][j],
-            purchased: true,
-            content: contentUrl,
-            owner: "User",
-            purchaseType,
-          };
-        }
-      }
-      setGrid(newGrid);
-
-      const savedPixels: Pixel[] = await getPixels();
-      savedPixels.push({
+      const newPixel: Pixel = {
         x: selected.x,
         y: selected.y,
         size: selected.size,
         owner: "User",
         content: contentUrl,
         purchaseType,
-      });
-      await savePixels(savedPixels);
+      };
+      const updatedPixels = [...purchasedPixels, newPixel];
+      setPurchasedPixels(updatedPixels);
 
       setIsDialogOpen(false);
       setSelected(null);
       setContentUrl("");
     }
   };
+
+  const handleGridUpdate = () => {
+    // 그리드 업데이트 후 추가 작업이 필요하면 여기에
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.5, 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.5, 0.5));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <p className="text-lg text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col py-8">
@@ -147,7 +115,7 @@ export default function Home() {
         <p className="text-lg text-gray-600 mb-4">
           Support an iOS app startup by buying pixels! 1 pixel = $1
         </p>
-        <div className="mb-8 flex flex-col items-center">
+        <div className="mb-4 flex flex-col items-center">
           <p className="text-sm text-gray-500">
             Sold: {soldPixels} pixels ({soldPercentage}%)
           </p>
@@ -159,31 +127,22 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative w-[1500px] h-[1000px] border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
-          <canvas
-            ref={canvasRef}
-            width={GRID_WIDTH}
-            height={GRID_HEIGHT}
-            className="w-full h-full"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = Math.floor((e.clientX - rect.left) / 1);
-              const y = Math.floor((e.clientY - rect.top) / 1);
-              handleClick(x - (x % 10), y - (y % 10));
-            }}
-          />
-          {selected && (
-            <div
-              className="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30"
-              style={{
-                left: selected.x,
-                top: selected.y,
-                width: selected.size,
-                height: selected.size,
-              }}
-            />
-          )}
+        <div className="flex space-x-2 mb-4">
+          <Button onClick={handleZoomIn} className="bg-blue-600 hover:bg-blue-700">
+            Zoom In
+          </Button>
+          <Button onClick={handleZoomOut} className="bg-blue-600 hover:bg-blue-700">
+            Zoom Out
+          </Button>
         </div>
+
+        <PixelGrid
+          purchasedPixels={purchasedPixels}
+          selected={selected}
+          zoomLevel={zoomLevel}
+          onBlockClick={handleBlockClick}
+          onGridUpdate={handleGridUpdate}
+        />
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
