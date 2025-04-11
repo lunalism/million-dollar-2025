@@ -4,17 +4,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { GridPixel, Pixel } from "@/lib/types";
 
 type PixelGridProps = {
-    purchasedPixels: Pixel[];
-    selected: { x: number; y: number; size: number } | null;
-    zoomLevel: number;
-    focusedBlock: { x: number; y: number } | null;
-    scrollPosition: { scrollLeft: number; scrollTop: number };
-    onBlockClick: (x: number, y: number) => void;
-    onGridUpdate: () => void;
-    onScroll: (scrollInfo: ScrollParams) => void;
+  purchasedPixels: Pixel[];
+  selected: { x: number; y: number; size: number } | null;
+  zoomLevel: number;
+  focusedBlock: { x: number; y: number } | null;
+  scrollPosition: { scrollLeft: number; scrollTop: number };
+  onBlockClick: (x: number, y: number) => void;
+  onGridUpdate: () => void;
+  onScroll: (scrollInfo: ScrollParams) => void;
+  gridWidth: number;
+  gridHeight: number;
 };
 
-export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focusedBlock, onBlockClick, onGridUpdate, onScroll }: PixelGridProps) {
+export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focusedBlock, onBlockClick, onGridUpdate, onScroll, gridWidth, gridHeight }: PixelGridProps) {
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
   const BASE_BLOCK_SIZE = 10;
@@ -50,9 +52,9 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
       const { x, y } = focusedBlock;
       const newX = x * zoomLevel;
       const newY = y * zoomLevel;
-      const viewportWidth = 1500;
-      const viewportHeight = 1000;
-      const blockSize = BASE_BLOCK_SIZE * zoomLevel; // BLOCK_SIZE를 내부에서 계산
+      const viewportWidth = gridWidth;
+      const viewportHeight = gridHeight;
+      const blockSize = BASE_BLOCK_SIZE * zoomLevel;
       const newScrollLeft = newX - viewportWidth / 2 + blockSize / 2;
       const newScrollTop = newY - viewportHeight / 2 + blockSize / 2;
 
@@ -65,7 +67,7 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
       gridRef.current.recomputeGridSize();
     }
     onGridUpdate();
-  }, [zoomLevel, focusedBlock, onGridUpdate]);
+  }, [zoomLevel, focusedBlock, onGridUpdate, gridWidth, gridHeight]);
 
   const cellRenderer: GridCellRenderer = ({ columnIndex, rowIndex, style }) => {
     const x = columnIndex * BASE_BLOCK_SIZE;
@@ -98,6 +100,7 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
             <div
               style={blockStyle}
               onClick={() => onBlockClick(x, y)}
+              onTouchEnd={() => onBlockClick(x, y)}
               className={isSelected ? "bg-blue-200 bg-opacity-30" : ""}
             />
           </TooltipTrigger>
@@ -123,11 +126,11 @@ export default function PixelGrid({ purchasedPixels, selected, zoomLevel, focuse
   };
 
   return (
-    <div className="relative w-[1500px] h-[1000px] border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
+    <div className="relative border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
       <Grid
         ref={gridRef}
-        width={1500}
-        height={1000}
+        width={gridWidth}
+        height={gridHeight}
         columnCount={GRID_WIDTH / BASE_BLOCK_SIZE}
         rowCount={GRID_HEIGHT / BASE_BLOCK_SIZE}
         columnWidth={BLOCK_SIZE}

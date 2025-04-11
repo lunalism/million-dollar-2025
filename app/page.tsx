@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/main/Header";
+import PixelGrid from "@/components/main/PixelGrid";
 import { getPixels, savePixels } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pixel } from "@/lib/types";
-import PixelGrid from "@/components/main/PixelGrid";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 export default function Home() {
   const pathname = usePathname();
@@ -32,6 +33,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [scrollPosition, setScrollPosition] = useState({ scrollLeft: 0, scrollTop: 0 });
   const [focusedBlock, setFocusedBlock] = useState<{ x: number; y: number } | null>(null);
+  const [gridWidth, setGridWidth] = useState(1500);
+  const [gridHeight, setGridHeight] = useState(1000);
 
   // 초기 픽셀 데이터 로드 (페이지 로드 시 한 번만 호출)
   useEffect(() => {
@@ -59,6 +62,25 @@ export default function Home() {
       handleBeforeUnload();
     };
   }, [purchasedPixels]);
+
+  // 그리드 크기 동적 조정
+  useEffect(() => {
+    const updateGridSize = () => {
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      const maxWidth = Math.min(windowWidth - 32, GRID_WIDTH);
+      const aspectRatio = GRID_WIDTH / GRID_HEIGHT;
+      const newWidth = Math.min(maxWidth, windowWidth - 32);
+      const newHeight = newWidth / aspectRatio;
+      setGridWidth(newWidth);
+      setGridHeight(newHeight);
+    };
+
+    updateGridSize();
+    window.addEventListener("resize", updateGridSize);
+
+    return () => window.removeEventListener("resize", updateGridSize);
+  }, []);
 
   const soldPixels = purchasedPixels.reduce((total, pixel) => total + pixel.size * pixel.size, 0);
   const totalPixels = GRID_WIDTH * GRID_HEIGHT;
@@ -103,12 +125,26 @@ export default function Home() {
 
   const handleScroll = (scrollInfo: { scrollLeft: number; scrollTop: number }) => {
     setScrollPosition(scrollInfo);
-    // 화면 중앙에 있는 블록 계산
-    const viewportWidth = 1500; // 그리드 너비
-    const viewportHeight = 1000; // 그리드 높이
+    const viewportWidth = gridWidth;
+    const viewportHeight = gridHeight;
     const blockSize = BLOCK_SIZE * zoomLevel;
     const centerX = (scrollInfo.scrollLeft + viewportWidth / 2) / blockSize;
     const centerY = (scrollInfo.scrollTop + viewportHeight / 2) / blockSize;
+    const blockX = Math.floor(centerX) * BLOCK_SIZE;
+    const blockY = Math.floor(centerY) * BLOCK_SIZE;
+    setFocusedBlock({ x: blockX, y: blockY });
+  };
+
+  const handlePinchZoom = (ref: { state: { scale: number; positionX: number; positionY: number } }) => {
+    const { scale, positionX, positionY } = ref.state;
+    setZoomLevel(scale);
+
+    // 줌 중심점을 기준으로 focusedBlock 계산
+    const viewportWidth = gridWidth;
+    const viewportHeight = gridHeight;
+    const blockSize = BLOCK_SIZE * scale;
+    const centerX = (-positionX + viewportWidth / 2) / blockSize;
+    const centerY = (-positionY + viewportHeight / 2) / blockSize;
     const blockX = Math.floor(centerX) * BLOCK_SIZE;
     const blockY = Math.floor(centerY) * BLOCK_SIZE;
     setFocusedBlock({ x: blockX, y: blockY });
@@ -125,15 +161,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white flex flex-col py-8">
       <Header activePath={pathname} />
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center px-4">
         <p className="text-lg text-gray-600 mb-4">
           Support an iOS app startup by buying pixels! 1 pixel = $1
         </p>
-        <div className="mb-4 flex flex-col items-center">
+        <div className="mb-4 flex flex-col items-center w-full max-w-md">
           <p className="text-sm text-gray-500">
             Sold: {soldPixels} pixels ({soldPercentage}%)
           </p>
-          <div className="w-80 h-3 bg-gray-200 rounded-full mt-2 shadow-sm">
+          <div className="w-full h-3 bg-gray-200 rounded-full mt-2 shadow-sm">
             <div
               className="h-3 bg-blue-500 rounded-full transition-all duration-300"
               style={{ width: `${soldPercentage}%` }}
@@ -142,27 +178,41 @@ export default function Home() {
         </div>
 
         <div className="flex items-center space-x-2 mb-4">
-          <Button onClick={handleZoomIn} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleZoomIn} className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2">
             Zoom In
           </Button>
           <span className="text-sm text-gray-600">
             Zoom: {zoomLevel.toFixed(1)}x
           </span>
-          <Button onClick={handleZoomOut} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleZoomOut} className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2">
             Zoom Out
           </Button>
         </div>
 
-        <PixelGrid
-          purchasedPixels={purchasedPixels}
-          selected={selected}
-          zoomLevel={zoomLevel}
-          focusedBlock={focusedBlock}
-          scrollPosition={scrollPosition}
-          onBlockClick={handleBlockClick}
-          onGridUpdate={handleGridUpdate}
-          onScroll={handleScroll}
-        />
+        <TransformWrapper
+          initialScale={1}
+          minScale={0.5}
+          maxScale={5}
+          onZoom={handlePinchZoom}
+          panning={{ disabled: true }}
+        >
+          <TransformComponent>
+            <div style={{ width: gridWidth, height: gridHeight }}>
+              <PixelGrid
+                purchasedPixels={purchasedPixels}
+                selected={selected}
+                zoomLevel={zoomLevel}
+                focusedBlock={focusedBlock}
+                scrollPosition={scrollPosition}
+                onBlockClick={handleBlockClick}
+                onGridUpdate={handleGridUpdate}
+                onScroll={handleScroll}
+                gridWidth={gridWidth}
+                gridHeight={gridHeight}
+              />
+            </div>
+          </TransformComponent>
+        </TransformWrapper>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
