@@ -18,6 +18,8 @@ const easingFunctions = {
   easeInOutQuad: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
 };
 
+// type EasingFunction = (t: number) => number;
+
 type PixelGridProps = {
   purchasedPixels: Pixel[];
   selected: { x: number; y: number; size: number } | null;
@@ -154,7 +156,7 @@ export default function PixelGrid({
   const [pixelMap, setPixelMap] = useState<Record<string, GridPixel>>({});
 
   useEffect(() => {
-    // Web Worker 초기화 (경로 복원)
+    // Web Worker 초기화
     const worker = new Worker("/pixelWorker.js");
 
     // purchasedPixels를 Worker로 전달
@@ -255,8 +257,8 @@ export default function PixelGrid({
         rowHeight={BLOCK_SIZE}
         cellRenderer={cellRenderer}
         style={{ overflowX: "auto", overflowY: "auto" }}
-        overscanRowCount={5}
-        overscanColumnCount={5}
+        overscanRowCount={2} // 오버스캔 값 조정 (5 → 2)
+        overscanColumnCount={2} // 오버스캔 값 조정 (5 → 2)
         onScroll={debouncedOnScroll}
       />
     </div>
