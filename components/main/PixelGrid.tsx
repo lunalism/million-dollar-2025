@@ -43,6 +43,9 @@ interface CellRendererProps {
   pixelMap: Record<string, Pixel>;
   selected: { x: number; y: number; size: number } | null;
   zoomLevel: number;
+  scrollPosition: { scrollLeft: number; scrollTop: number };
+  gridWidth: number;
+  gridHeight: number;
   onBlockClick: (x: number, y: number) => void;
 }
 
@@ -54,6 +57,9 @@ const CellRenderer = ({
   pixelMap,
   selected,
   zoomLevel,
+  scrollPosition,
+  gridWidth,
+  gridHeight,
   onBlockClick,
 }: CellRendererProps) => {
   const BASE_BLOCK_SIZE = 10;
@@ -81,6 +87,25 @@ const CellRenderer = ({
     x < selected.x + selected.size &&
     y < selected.y + selected.size;
 
+  // 뷰포트 범위 계산
+  const viewportLeft = scrollPosition.scrollLeft;
+  const viewportTop = scrollPosition.scrollTop;
+  const viewportRight = viewportLeft + gridWidth;
+  const viewportBottom = viewportTop + gridHeight;
+
+  // 블록의 픽셀 좌표 계산
+  const blockLeft = x * zoomLevel;
+  const blockTop = y * zoomLevel;
+  const blockRight = blockLeft + BLOCK_SIZE;
+  const blockBottom = blockTop + BLOCK_SIZE;
+
+  // 뷰포트 근처 여부 확인 (100px 여유 추가)
+  const isNearViewport =
+    blockRight >= viewportLeft - 100 &&
+    blockLeft <= viewportRight + 100 &&
+    blockBottom >= viewportTop - 100 &&
+    blockTop <= viewportBottom + 100;
+
   const blockStyle = {
     ...style,
     width: BLOCK_SIZE,
@@ -93,36 +118,34 @@ const CellRenderer = ({
   };
 
   return (
-    <TooltipProvider>
-      <div
-        style={blockStyle}
-        onClick={() => onBlockClick(x, y)}
-        onTouchEnd={() => onBlockClick(x, y)}
-        className={isSelected ? "bg-blue-200 bg-opacity-30" : ""}
-      >
-        {isVisible && isPurchased && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="w-full h-full" />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                <strong>Position:</strong> ({x}, {y})
-              </p>
-              <p>
-                <strong>Owner:</strong> {gridPixel.owner || "Unknown"}
-              </p>
-              <p>
-                <strong>Content:</strong> {gridPixel.content || "No content"}
-              </p>
-              <p>
-                <strong>Type:</strong> {gridPixel.purchaseType || "basic"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-    </TooltipProvider>
+    <div
+      style={blockStyle}
+      onClick={() => onBlockClick(x, y)}
+      onTouchEnd={() => onBlockClick(x, y)}
+      className={isSelected ? "bg-blue-200 bg-opacity-30" : ""}
+    >
+      {isVisible && isNearViewport && isPurchased && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full h-full" />
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>
+              <strong>Position:</strong> ({x}, {y})
+            </p>
+            <p>
+              <strong>Owner:</strong> {gridPixel.owner || "Unknown"}
+            </p>
+            <p>
+              <strong>Content:</strong> {gridPixel.content || "No content"}
+            </p>
+            <p>
+              <strong>Type:</strong> {gridPixel.purchaseType || "basic"}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 };
 
@@ -138,6 +161,9 @@ const MemoizedCellRenderer = memo(
     prevProps.pixelMap === nextProps.pixelMap &&
     prevProps.selected === nextProps.selected &&
     prevProps.zoomLevel === nextProps.zoomLevel &&
+    prevProps.scrollPosition === nextProps.scrollPosition &&
+    prevProps.gridWidth === nextProps.gridWidth &&
+    prevProps.gridHeight === nextProps.gridHeight &&
     prevProps.onBlockClick === nextProps.onBlockClick
 );
 
@@ -231,27 +257,32 @@ const PixelGrid = memo(
         pixelMap={pixelMap}
         selected={selected}
         zoomLevel={zoomLevel}
+        scrollPosition={scrollPosition}
+        gridWidth={gridWidth}
+        gridHeight={gridHeight}
         onBlockClick={onBlockClick}
       />
     );
 
     return (
-      <div className="relative border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
-        <Grid
-          ref={gridRef}
-          width={gridWidth}
-          height={gridHeight}
-          columnCount={GRID_WIDTH / BASE_BLOCK_SIZE}
-          rowCount={GRID_HEIGHT / BASE_BLOCK_SIZE}
-          columnWidth={BLOCK_SIZE}
-          rowHeight={BLOCK_SIZE}
-          cellRenderer={cellRenderer}
-          style={{ overflowX: "auto", overflowY: "auto" }}
-          overscanRowCount={2}
-          overscanColumnCount={2}
-          onScroll={debouncedOnScroll}
-        />
-      </div>
+      <TooltipProvider>
+        <div className="relative border-2 border-gray-300 shadow-lg rounded-lg overflow-auto">
+          <Grid
+            ref={gridRef}
+            width={gridWidth}
+            height={gridHeight}
+            columnCount={GRID_WIDTH / BASE_BLOCK_SIZE}
+            rowCount={GRID_HEIGHT / BASE_BLOCK_SIZE}
+            columnWidth={BLOCK_SIZE}
+            rowHeight={BLOCK_SIZE}
+            cellRenderer={cellRenderer}
+            style={{ overflowX: "auto", overflowY: "auto" }}
+            overscanRowCount={2}
+            overscanColumnCount={2}
+            onScroll={debouncedOnScroll}
+          />
+        </div>
+      </TooltipProvider>
     );
   },
   (prevProps, nextProps) =>
