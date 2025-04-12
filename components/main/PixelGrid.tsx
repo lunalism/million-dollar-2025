@@ -22,15 +22,11 @@ export default function PixelGrid({
   pixelMap,
   selected,
   zoomLevel,
-  focusedBlock,
-  scrollPosition,
   onBlockClick,
   onGridUpdate,
   onScroll,
   gridWidth,
   gridHeight,
-  scrollDuration,
-  scrollEasing,
 }: PixelGridProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -41,16 +37,13 @@ export default function PixelGrid({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // 캔버스 크기 설정
     canvas.width = gridWidth;
     canvas.height = gridHeight;
 
-    // 그리드 그리기
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
     const blockSize = 10 * zoomLevel;
 
-    // 수직선 그리기
     for (let x = 0; x <= gridWidth; x += blockSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -58,7 +51,6 @@ export default function PixelGrid({
       ctx.stroke();
     }
 
-    // 수평선 그리기
     for (let y = 0; y <= gridHeight; y += blockSize) {
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -66,16 +58,15 @@ export default function PixelGrid({
       ctx.stroke();
     }
 
-    // 구매된 픽셀 그리기
     Object.values(pixelMap).forEach((pixel: Pixel) => {
       const x = pixel.x * zoomLevel;
       const y = pixel.y * zoomLevel;
-      const size = pixel.size * zoomLevel;
+      const width = pixel.width * zoomLevel;
+      const height = pixel.height * zoomLevel;
       ctx.fillStyle = pixel.purchaseType === "premium" ? "rgba(255, 215, 0, 0.5)" : "rgba(0, 128, 0, 0.5)";
-      ctx.fillRect(x, y, size, size);
+      ctx.fillRect(x, y, width, height);
     });
 
-    // 선택된 블록 표시
     if (selected && selected.width && selected.height) {
       const x = selected.x * zoomLevel;
       const y = selected.y * zoomLevel;
@@ -111,7 +102,7 @@ export default function PixelGrid({
   useEffect(() => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]); // handleScroll을 의존성 배열에 추가
+  }, [handleScroll]);
 
   return (
     <canvas

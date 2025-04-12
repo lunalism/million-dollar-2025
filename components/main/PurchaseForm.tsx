@@ -11,16 +11,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pixel } from "@/lib/types";
+import { Pixel, PixelMap } from "@/lib/types";
 
 interface PurchaseFormProps {
   selected: { x: number; y: number } | null;
   isOpen: boolean;
   onClose: () => void;
   onPurchase: (pixel: Pixel) => void;
+  pixelMap: PixelMap;
 }
 
-export default function PurchaseForm({ selected, isOpen, onClose, onPurchase }: PurchaseFormProps) {
+export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pixelMap }: PurchaseFormProps) {
   const [width, setWidth] = useState<string>("10");
   const [height, setHeight] = useState<string>("10");
   const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic");
@@ -34,8 +35,36 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase }: 
     const heightNum = parseInt(height, 10);
     if (isNaN(widthNum) || isNaN(heightNum)) return 0;
     const area = widthNum * heightNum;
-    const basePrice = area; // 1 픽셀 = $1
+    const basePrice = area * 0.1; // 1 픽셀 = $0.1 (10×10 = $10)
     return purchaseType === "basic" ? basePrice : basePrice * 1.5; // Premium은 1.5배
+  };
+
+  // 겹침 검증 함수
+  const checkOverlap = (newPixel: { x: number; y: number; width: number; height: number }) => {
+    const newLeft = newPixel.x;
+    const newRight = newPixel.x + newPixel.width;
+    const newTop = newPixel.y;
+    const newBottom = newPixel.y + newPixel.height;
+
+    for (const existingPixel of Object.values(pixelMap)) {
+      const existingLeft = existingPixel.x;
+      const existingRight = existingPixel.x + existingPixel.width;
+      const existingTop = existingPixel.y;
+      const existingBottom = existingPixel.y + existingPixel.height;
+
+      // 겹침 여부 확인
+      const overlaps =
+        newLeft < existingRight &&
+        newRight > existingLeft &&
+        newTop < existingBottom &&
+        newBottom > existingTop;
+
+      if (overlaps) {
+        return true; // 겹침 발생
+      }
+    }
+
+    return false; // 겹침 없음
   };
 
   // 구매 확인
@@ -56,16 +85,30 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase }: 
       return;
     }
 
-    const newPixel: Pixel = {
+    // 겹침 검증
+    const newPixel = {
       x: selected.x,
       y: selected.y,
-      size: widthNum, // width를 size로 사용 (가로 크기 기준, 기존 Pixel 타입에 맞춤)
+      width: widthNum,
+      height: heightNum,
+    };
+
+    if (checkOverlap(newPixel)) {
+      setError("Selected area overlaps with an existing pixel block. Please choose a different location or size.");
+      return;
+    }
+
+    const pixel: Pixel = {
+      x: selected.x,
+      y: selected.y,
+      width: widthNum,
+      height: heightNum,
       owner: "User",
       content: contentUrl,
       purchaseType,
     };
 
-    onPurchase(newPixel);
+    onPurchase(pixel);
     onClose();
   };
 
@@ -132,7 +175,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase }: 
             {/* 가격 표시 */}
             {!error && (
               <p className="mt-1">
-                Price: ${calculatePrice()} ({purchaseType})
+                Price: ${calculatePrice().toFixed(2)} ({purchaseType})
               </p>
             )}
           </div>
