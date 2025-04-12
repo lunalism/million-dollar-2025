@@ -14,6 +14,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"; // 아코디언 컴포넌트
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"; // 다이얼로그 컴포넌트
 import { getFAQItems } from "@/lib/supabase"; // Supabase에서 FAQ 데이터 가져오기
 import { toast } from "sonner"; // sonner로 메시지 표시
 
@@ -36,6 +43,7 @@ export default function Contact() {
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]); // FAQ 데이터 상태
   const [isLoading, setIsLoading] = useState(true); // FAQ 로딩 상태
   const [isSending, setIsSending] = useState(false); // 메일 전송 중 로딩 상태
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false); // 성공 다이얼로그 상태
 
   // Supabase에서 FAQ 데이터 로드
   useEffect(() => {
@@ -96,11 +104,8 @@ export default function Contact() {
 
       const result = await response.json();
       if (result.success) {
-        toast.success("Feedback sent successfully!");
-        // 폼 입력값 초기화
-        setName("");
-        setEmail("");
-        setMessage("");
+        // 성공 시 다이얼로그 표시
+        setIsSuccessDialogOpen(true);
       } else {
         throw new Error(result.message || "Failed to send feedback.");
       }
@@ -110,6 +115,15 @@ export default function Contact() {
     } finally {
       setIsSending(false); // 전송 종료
     }
+  };
+
+  // 성공 다이얼로그 닫기 및 폼 초기화
+  const handleSuccessDialogClose = () => {
+    setIsSuccessDialogOpen(false);
+    // 폼 입력값 초기화
+    setName("");
+    setEmail("");
+    setMessage("");
   };
 
   // 로딩 중일 때 표시
@@ -219,6 +233,30 @@ export default function Contact() {
           </div>
         </div>
       </section>
+
+      {/* 성공 다이얼로그 */}
+      <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold text-gray-900">
+              Thank You!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600">
+              의견을 주셔서 감사합니다. 곧 답변드리도록 하겠습니다.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleSuccessDialogClose}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
