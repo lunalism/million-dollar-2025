@@ -49,8 +49,8 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       getImageSize(contentFile)
         .then((size) => {
           // 이미지 크기를 블록 단위로 변환 (올림 처리)
-          const blockWidth = Math.ceil(size.width / blockSize) * 10;
-          const blockHeight = Math.ceil(size.height / blockSize) * 10;
+          const blockWidth = Math.ceil(size.width / blockSize);
+          const blockHeight = Math.ceil(size.height / blockSize);
           setWidth(blockWidth.toString());
           setHeight(blockHeight.toString());
           setError("");
@@ -71,8 +71,8 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       getImageSize(contentUrl)
         .then((size) => {
           // 이미지 크기를 블록 단위로 변환 (올림 처리)
-          const blockWidth = Math.ceil(size.width / blockSize) * 10;
-          const blockHeight = Math.ceil(size.height / blockSize) * 10;
+          const blockWidth = Math.ceil(size.width / blockSize);
+          const blockHeight = Math.ceil(size.height / blockSize);
           setWidth(blockWidth.toString());
           setHeight(blockHeight.toString());
           setError("");
@@ -188,7 +188,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
         } catch (err) {
           // 이미지 크기 계산 실패 시 에러 로깅 및 메시지 설정
           console.error("Image size calculation error:", err);
-          throw new Error(`Failed to calculate image size`);
+          throw new Error(`Failed to calculate image size:`);
         }
       }
 
