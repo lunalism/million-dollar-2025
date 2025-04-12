@@ -141,20 +141,6 @@ export default function About() {
                 {item.title}
               </Button>
             ))}
-            <Button
-              variant="ghost"
-              className={`w-full text-left justify-start relative transition-all duration-300 ${
-                selectedCategory === "FAQ"
-                  ? "text-[#0F4C81] font-semibold bg-[#0F4C81]/10"
-                  : "text-gray-600 hover:text-[#0F4C81] hover:bg-[#0F4C81]/5"
-              }`}
-              onClick={() => setSelectedCategory("FAQ")}
-            >
-              {selectedCategory === "FAQ" && (
-                <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
-              )}
-              FAQ
-            </Button>
           </div>
         </div>
 
