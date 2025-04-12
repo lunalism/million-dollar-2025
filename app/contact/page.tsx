@@ -244,7 +244,7 @@ export default function Contact() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-gray-600">
-              의견을 주셔서 감사합니다. 곧 답변드리도록 하겠습니다.
+              Thank you for your feedback. We will get back to you shortly.
             </p>
           </div>
           <DialogFooter>
