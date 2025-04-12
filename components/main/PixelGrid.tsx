@@ -31,6 +31,25 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, gridWidth, gridHeight);
 
+    // 1픽셀 단위 격자선 그리기
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.1)"; // 격자선 색상 (투명도 낮게)
+    ctx.lineWidth = 0.5; // 격자선 두께
+
+    // 세로선 그리기 (1픽셀 단위)
+    for (let x = 0; x <= gridWidth; x++) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, gridHeight);
+    }
+
+    // 가로선 그리기 (1픽셀 단위)
+    for (let y = 0; y <= gridHeight; y++) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(gridWidth, y);
+    }
+
+    ctx.stroke();
+
     // 픽셀 데이터 렌더링
     Object.values(pixelMap).forEach((pixel) => {
       if (pixel.content) {
