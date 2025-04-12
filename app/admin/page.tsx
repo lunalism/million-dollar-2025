@@ -304,11 +304,11 @@ export default function Admin() {
                           <TableCell>{pixel.purchaseType}</TableCell>
                           <TableCell>
                             {/* 수정 버튼 */}
-                            <Button style={{ width: "160px" }} variant="outline" className="mr-2" onClick={() => handleEditPixel(pixel)}>
+                            <Button style={{ width: "80px" }} variant="outline" className="mr-2" onClick={() => handleEditPixel(pixel)}>
                               Edit
                             </Button>
                             {/* 삭제 버튼 */}
-                            <Button style={{ width: "160px" }} variant="destructive" onClick={() => handleDeletePixel(pixel.x, pixel.y)}>
+                            <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeletePixel(pixel.x, pixel.y)}>
                               Delete
                             </Button>
                           </TableCell>
@@ -424,7 +424,7 @@ export default function Admin() {
                         dangerouslySetInnerHTML={{ __html: item.answer }}
                       />
                     </div>
-                    <div className="space-x-2 ml-5">
+                    <div className="space-x-2 ml-10">
                       <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditFAQ(item)}>
                         Edit
                       </Button>
@@ -467,9 +467,7 @@ export default function Admin() {
                   <h3 className="text-lg font-semibold text-gray-800">Edit FAQ</h3>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Question</label>
-                    <Input
-                      value={editFAQItem.question}
-                      onChange={(e) =>
+                    <Input value={editFAQItem.question} onChange={(e) =>
                         setEditFAQItem({ ...editFAQItem, question: e.target.value })
                       }
                     />
@@ -487,10 +485,7 @@ export default function Admin() {
                     <Button onClick={handleSaveFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
                       Save Changes
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setEditFAQItem(null)}
-                    >
+                    <Button variant="outline" onClick={() => setEditFAQItem(null)}>
                       Cancel
                     </Button>
                   </div>
