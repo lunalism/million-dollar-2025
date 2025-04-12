@@ -177,14 +177,18 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
         try {
           finalContentUrl = await uploadFile(contentFile);
         } catch (err) {
-          throw new Error(`Failed to upload file to Supabase Storage: ${err.message}`);
+          // 업로드 실패 시 에러 로깅 및 메시지 설정
+          console.error("Upload error:", err);
+          throw new Error(`Failed to upload file to Supabase Storage:`);
         }
         try {
           const size = await getImageSize(contentFile);
           contentWidth = size.width;
           contentHeight = size.height;
         } catch (err) {
-          throw new Error(`Failed to calculate image size: ${err.message}`);
+          // 이미지 크기 계산 실패 시 에러 로깅 및 메시지 설정
+          console.error("Image size calculation error:", err);
+          throw new Error(`Failed to calculate image size`);
         }
       }
 
@@ -204,7 +208,9 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       const amount = calculatePrice();
       onPurchase(pixel, amount);
     } catch (err) {
-      setError(err.message || "Failed to process content. Please try again.");
+      // 에러 로깅 및 사용자에게 구체적인 에러 메시지 표시
+      console.error("Purchase error:", err);
+      setError("Failed to process content. Please try again.");
     } finally {
       setIsLoading(false);
     }
