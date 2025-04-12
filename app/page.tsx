@@ -11,8 +11,15 @@ import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
 import { Pixel, PixelMap } from "@/lib/types"; // 픽셀 타입 정의
 import PixelGrid from "@/components/main/PixelGrid"; // 픽셀 그리드 컴포넌트
 import PurchaseForm from "@/components/main/PurchaseForm"; // 구매 폼 컴포넌트
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"; // 줌/팬 기능 컴포넌트
 import debounce from "lodash/debounce"; // 디바운싱 유틸리티
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"; // 다이얼로그 컴포넌트
+import { Input } from "@/components/ui/input"; // 입력 필드 컴포넌트
 
 // useReducer의 상태와 액션 타입 정의
 interface PixelState {
@@ -79,25 +86,22 @@ const pixelReducer = (state: PixelState, action: PixelAction): PixelState => {
 
 // 홈 페이지 컴포넌트
 export default function Home() {
-  // 현재 경로 가져오기
   const pathname = usePathname();
-  // 그리드 크기 상수
-  const GRID_WIDTH = 1500; // 그리드 너비
-  const GRID_HEIGHT = 1000; // 그리드 높이
-  const BLOCK_SIZE = 10; // 최소 블록 크기 (10×10)
+  const GRID_WIDTH = 1500;
+  const GRID_HEIGHT = 1000;
+  const BLOCK_SIZE = 10;
 
-  // 상태 정의
   const [state, dispatch] = useReducer(pixelReducer, { pixelMap: {}, pixelList: [], changedPixels: [] });
   const [selected, setSelected] = useState<{ x: number; y: number; width?: number; height?: number } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isCoordinateDialogOpen, setIsCoordinateDialogOpen] = useState(false);
+  const [coordinateX, setCoordinateX] = useState<string>("0");
+  const [coordinateY, setCoordinateY] = useState<string>("0");
+  const [coordinateError, setCoordinateError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [scrollPosition, setScrollPosition] = useState({ scrollLeft: 0, scrollTop: 0 });
-  const [focusedBlock, setFocusedBlock] = useState<{ x: number; y: number } | null>(null);
   const [gridWidth, setGridWidth] = useState(1500);
   const [gridHeight, setGridHeight] = useState(1000);
 
-  // localStorage에서 캐싱된 데이터 로드
   useEffect(() => {
     const loadPixels = async () => {
       setIsLoading(true);
@@ -128,7 +132,6 @@ export default function Home() {
     loadPixels();
   }, []);
 
-  // 상태 변경 시 디바운싱된 저장 호출
   useEffect(() => {
     const saveToLocalStorage = debounce((pixelList: Pixel[]) => {
       localStorage.setItem("purchasedPixels", JSON.stringify(pixelList));
@@ -149,7 +152,6 @@ export default function Home() {
     };
   }, [state.pixelList, state.changedPixels]);
 
-  // 페이지 종료 시 최종 저장
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (state.pixelList.length > 0) {
@@ -167,7 +169,6 @@ export default function Home() {
     };
   }, [state.pixelList]);
 
-  // 그리드 크기 동적 조정
   useEffect(() => {
     const updateGridSize = () => {
       const windowWidth = window.innerWidth;
@@ -185,7 +186,6 @@ export default function Home() {
     return () => window.removeEventListener("resize", updateGridSize);
   }, []);
 
-  // 판매된 픽셀 수와 비율 계산
   const soldPixels = isLoading
     ? 0
     : state.pixelList.reduce((total, pixel) => {
@@ -198,66 +198,43 @@ export default function Home() {
     ? "0.00"
     : ((soldPixels / totalPixels) * 100).toFixed(2);
 
-  // 블록 클릭 시 다이얼로그 열기
   const handleBlockClick = (x: number, y: number) => {
     setSelected({ x, y });
     setIsDialogOpen(true);
   };
 
-  // Buy Pixel Now 버튼 클릭 시 다이얼로그 열기
   const handleBuyPixelClick = () => {
-    handleBlockClick(0, 0);
+    setIsCoordinateDialogOpen(true);
   };
 
-  // 구매 확인 시
+  const handleCoordinateSubmit = () => {
+    const x = parseInt(coordinateX, 10);
+    const y = parseInt(coordinateY, 10);
+
+    if (isNaN(x) || isNaN(y)) {
+      setCoordinateError("Coordinates must be valid numbers.");
+      return;
+    }
+
+    if (x < 0 || x > GRID_WIDTH - BLOCK_SIZE || y < 0 || y > GRID_HEIGHT - BLOCK_SIZE) {
+      setCoordinateError(`Coordinates must be within the grid (x: 0 to ${GRID_WIDTH - BLOCK_SIZE}, y: 0 to ${GRID_HEIGHT - BLOCK_SIZE}).`);
+      return;
+    }
+
+    setCoordinateError("");
+    setSelected({ x, y });
+    setIsCoordinateDialogOpen(false);
+    setIsDialogOpen(true);
+  };
+
   const handlePurchase = (pixel: Pixel) => {
     dispatch({ type: "ADD_PIXEL", pixel });
   };
 
-  // 그리드 업데이트 핸들러
   const handleGridUpdate = () => {
     // 그리드 업데이트 후 추가 작업이 필요하면 여기에
   };
 
-  // 줌 인 버튼 클릭 시
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.5, 5));
-  };
-
-  // 줌 아웃 버튼 클릭 시
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.5, 0.5));
-  };
-
-  // 스크롤 핸들러
-  const handleScroll = (scrollInfo: { scrollLeft: number; scrollTop: number }) => {
-    setScrollPosition(scrollInfo);
-    const viewportWidth = gridWidth;
-    const viewportHeight = gridHeight;
-    const blockSize = BLOCK_SIZE * zoomLevel;
-    const centerX = (scrollInfo.scrollLeft + viewportWidth / 2) / blockSize;
-    const centerY = (scrollInfo.scrollTop + viewportHeight / 2) / blockSize;
-    const blockX = Math.floor(centerX) * BLOCK_SIZE;
-    const blockY = Math.floor(centerY) * BLOCK_SIZE;
-    setFocusedBlock({ x: blockX, y: blockY });
-  };
-
-  // 핀치 줌 핸들러
-  const handlePinchZoom = (ref: { state: { scale: number; positionX: number; positionY: number } }) => {
-    const { scale, positionX, positionY } = ref.state;
-    setZoomLevel(scale);
-
-    const viewportWidth = gridWidth;
-    const viewportHeight = gridHeight;
-    const blockSize = BLOCK_SIZE * scale;
-    const centerX = (-positionX + viewportWidth / 2) / blockSize;
-    const centerY = (-positionY + viewportHeight / 2) / blockSize;
-    const blockX = Math.floor(centerX) * BLOCK_SIZE;
-    const blockY = Math.floor(centerY) * BLOCK_SIZE;
-    setFocusedBlock({ x: blockX, y: blockY });
-  };
-
-  // 로딩 중일 때 표시
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -292,46 +269,17 @@ export default function Home() {
           Buy Pixel Now
         </Button>
 
-        <div className="flex items-center space-x-2 mb-4">
-          <Button onClick={handleZoomIn} className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2">
-            Zoom In
-          </Button>
-          <span className="text-sm text-gray-600">
-            Zoom: {zoomLevel.toFixed(1)}x
-          </span>
-          <Button onClick={handleZoomOut} className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2">
-            Zoom Out
-          </Button>
-        </div>
-
         <div className="relative">
-          <TransformWrapper
-            initialScale={1}
-            minScale={0.5}
-            maxScale={5}
-            onZoom={handlePinchZoom}
-            panning={{ disabled: true }}
-          >
-            <TransformComponent>
-              <div style={{ width: gridWidth, height: gridHeight }}>
-                <PixelGrid
-                  pixelMap={state.pixelMap}
-                  selected={selected}
-                  zoomLevel={zoomLevel}
-                  focusedBlock={focusedBlock}
-                  scrollPosition={scrollPosition}
-                  onBlockClick={handleBlockClick}
-                  onGridUpdate={handleGridUpdate}
-                  onScroll={handleScroll}
-                  gridWidth={gridWidth}
-                  gridHeight={gridHeight}
-                  scrollDuration={500}
-                  scrollEasing="easeOutQuad"
-                />
-              </div>
-            </TransformComponent>
-          </TransformWrapper>
-
+          <div style={{ width: gridWidth, height: gridHeight }}>
+            <PixelGrid
+              pixelMap={state.pixelMap}
+              selected={selected}
+              onBlockClick={handleBlockClick}
+              onGridUpdate={handleGridUpdate}
+              gridWidth={gridWidth}
+              gridHeight={gridHeight}
+            />
+          </div>
           <Image
             src="/example.png"
             alt="Example Image"
@@ -342,6 +290,72 @@ export default function Home() {
             priority
           />
         </div>
+
+        {/* 좌표 입력 다이얼로그 */}
+        <Dialog open={isCoordinateDialogOpen} onOpenChange={setIsCoordinateDialogOpen}>
+          <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-semibold text-gray-900">
+                Select Coordinates
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="text-sm text-gray-600">
+                <p className="mb-2">
+                  Enter the coordinates (x, y) where you want to buy pixels.
+                  <br />
+                  (x: 0 to {GRID_WIDTH - BLOCK_SIZE}, y: 0 to {GRID_HEIGHT - BLOCK_SIZE})
+                </p>
+                <div className="flex items-center space-x-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">X</label>
+                    <Input
+                      type="number"
+                      value={coordinateX}
+                      onChange={(e) => {
+                        setCoordinateX(e.target.value);
+                        setCoordinateError("");
+                      }}
+                      placeholder="e.g., 0"
+                      className="mt-1 w-full"
+                      min={0}
+                      max={GRID_WIDTH - BLOCK_SIZE}
+                    />
+                  </div>
+                  <span className="text-gray-700 text-lg">,</span>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Y</label>
+                    <Input
+                      type="number"
+                      value={coordinateY}
+                      onChange={(e) => {
+                        setCoordinateY(e.target.value);
+                        setCoordinateError("");
+                      }}
+                      placeholder="e.g., 0"
+                      className="mt-1 w-full"
+                      min={0}
+                      max={GRID_HEIGHT - BLOCK_SIZE}
+                    />
+                  </div>
+                </div>
+                {coordinateError && <p className="text-red-500 text-sm mt-1">{coordinateError}</p>}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCoordinateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCoordinateSubmit}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={!!coordinateError}
+              >
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <PurchaseForm
           selected={selected}
