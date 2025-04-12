@@ -1,5 +1,4 @@
 // app/contact/page.tsx
-
 "use client";
 
 // 필요한 모듈 임포트
@@ -15,7 +14,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"; // 아코디언 컴포넌트
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"; // 다이얼로그 컴포넌트
 import { getFAQItems } from "@/lib/supabase"; // Supabase에서 FAQ 데이터 가져오기
+import { toast } from "sonner"; // sonner로 메시지 표시
 
 // FAQ 항목 타입 정의 (faq 테이블 구조에 맞춤)
 interface FAQItem {
@@ -34,7 +41,9 @@ export default function Contact() {
   const [email, setEmail] = useState(""); // 이메일 입력 상태
   const [message, setMessage] = useState(""); // 메시지 입력 상태
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]); // FAQ 데이터 상태
-  const [isLoading, setIsLoading] = useState(true); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(true); // FAQ 로딩 상태
+  const [isSending, setIsSending] = useState(false); // 메일 전송 중 로딩 상태
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false); // 성공 다이얼로그 상태
 
   // Supabase에서 FAQ 데이터 로드
   useEffect(() => {
@@ -54,10 +63,63 @@ export default function Contact() {
   }, []); // 컴포넌트 마운트 시 실행
 
   // 폼 제출 핸들러
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); // 기본 폼 제출 동작 방지
-    // 폼 데이터 콘솔 출력
-    console.log("Form submitted:", { name, email, message });
+
+    // 입력값 검증
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
+
+    // 이메일 형식 검증 (간단한 정규식)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    setIsSending(true); // 전송 시작
+    try {
+      // Web3Forms API로 피드백 전송
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY!,
+          name: name,
+          email: email,
+          message: message,
+          subject: `New Feedback from ${name}`,
+          date: new Date().toLocaleString("en-US", {
+            timeZone: "Asia/Seoul",
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // 성공 시 다이얼로그 표시
+        setIsSuccessDialogOpen(true);
+      } else {
+        throw new Error(result.message || "Failed to send feedback.");
+      }
+    } catch (error) {
+      console.error("Failed to send feedback:", error);
+      toast.error("Failed to send feedback. Please try again.");
+    } finally {
+      setIsSending(false); // 전송 종료
+    }
+  };
+
+  // 성공 다이얼로그 닫기 및 폼 초기화
+  const handleSuccessDialogClose = () => {
+    setIsSuccessDialogOpen(false);
     // 폼 입력값 초기화
     setName("");
     setEmail("");
@@ -132,8 +194,9 @@ export default function Contact() {
                 <Button
                   type="submit"
                   className="w-full bg-white text-gray-900 border-2 border-blue-500 hover:bg-blue-50 hover:border-blue-600 rounded-lg py-3 font-semibold shadow-md"
+                  disabled={isSending}
                 >
-                  SHARE YOUR FEEDBACK
+                  {isSending ? "Sending..." : "SHARE YOUR FEEDBACK"}
                 </Button>
               </div>
             </form>
@@ -170,6 +233,30 @@ export default function Contact() {
           </div>
         </div>
       </section>
+
+      {/* 성공 다이얼로그 */}
+      <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold text-gray-900">
+              Thank You!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600">
+              의견을 주셔서 감사합니다. 곧 답변드리도록 하겠습니다.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleSuccessDialogClose}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
