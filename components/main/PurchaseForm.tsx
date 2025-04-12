@@ -93,7 +93,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
     const pixelWidth = widthNum * blockSize;
     const pixelHeight = heightNum * blockSize;
     const area = pixelWidth * pixelHeight; // 실제 픽셀 면적
-    const basePrice = area * 0.1; // 1 픽셀 = $0.1
+    const basePrice = area * 0.01; // 1 픽셀 = $0.01 (100x100 = 100달러)
     return purchaseType === "basic" ? basePrice : basePrice * 1.5; // Premium은 1.5배
   };
 

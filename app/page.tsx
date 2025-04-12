@@ -113,7 +113,7 @@ export default function Home() {
         <Header activePath={pathname} />
         <div className="flex flex-col items-center px-4">
           <p className="text-lg text-gray-600 mb-4">
-            Support an iOS app startup by buying pixels! 1 pixel = $0.1
+            Support an iOS app startup by buying pixels! 1 pixel = $0.01
           </p>
           <div className="mb-4 flex flex-col items-center w-full max-w-md">
             <p className="text-sm text-gray-500">
