@@ -17,7 +17,7 @@ interface PurchaseFormProps {
   selected: { x: number; y: number } | null;
   isOpen: boolean;
   onClose: () => void;
-  onPurchase: (pixel: Pixel) => void;
+  onPurchase: (pixel: Pixel, amount: number) => void;
   pixelMap: PixelMap;
 }
 
@@ -28,7 +28,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
   const [contentUrl, setContentUrl] = useState("");
   const [error, setError] = useState("");
 
-  // 가격 계산
   const calculatePrice = () => {
     if (!selected) return 0;
     const widthNum = parseInt(width, 10);
@@ -36,10 +35,9 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
     if (isNaN(widthNum) || isNaN(heightNum)) return 0;
     const area = widthNum * heightNum;
     const basePrice = area * 0.1; // 1 픽셀 = $0.1 (10×10 = $10)
-    return purchaseType === "basic" ? basePrice : basePrice * 1.5; // Premium은 1.5배
+    return purchaseType === "basic" ? basePrice : basePrice * 1.5;
   };
 
-  // 겹침 검증 함수
   const checkOverlap = (newPixel: { x: number; y: number; width: number; height: number }) => {
     const newLeft = newPixel.x;
     const newRight = newPixel.x + newPixel.width;
@@ -52,7 +50,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       const existingTop = existingPixel.y;
       const existingBottom = existingPixel.y + existingPixel.height;
 
-      // 겹침 여부 확인
       const overlaps =
         newLeft < existingRight &&
         newRight > existingLeft &&
@@ -60,21 +57,19 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
         newBottom > existingTop;
 
       if (overlaps) {
-        return true; // 겹침 발생
+        return true;
       }
     }
 
-    return false; // 겹침 없음
+    return false;
   };
 
-  // 구매 확인
   const handlePurchase = async () => {
     if (!selected) return;
 
     const widthNum = parseInt(width, 10);
     const heightNum = parseInt(height, 10);
 
-    // 입력값 검증
     if (isNaN(widthNum) || isNaN(heightNum)) {
       setError("Width and Height must be valid numbers.");
       return;
@@ -85,7 +80,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       return;
     }
 
-    // 겹침 검증
     const newPixel = {
       x: selected.x,
       y: selected.y,
@@ -108,11 +102,10 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       purchaseType,
     };
 
-    onPurchase(pixel);
-    onClose();
+    const amount = calculatePrice();
+    onPurchase(pixel, amount);
   };
 
-  // 다이얼로그 닫기 시 상태 초기화
   const handleClose = () => {
     setWidth("10");
     setHeight("10");
@@ -132,11 +125,9 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="text-sm text-gray-600">
-            {/* 선택된 좌표 표시 */}
             <p>
               Selected: ({selected?.x}, {selected?.y})
             </p>
-            {/* 크기 입력: width * height */}
             <div className="mt-1 flex items-center space-x-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Width</label>
@@ -170,16 +161,13 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
                 />
               </div>
             </div>
-            {/* 에러 메시지 */}
             {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-            {/* 가격 표시 */}
             {!error && (
               <p className="mt-1">
                 Price: ${calculatePrice().toFixed(2)} ({purchaseType})
               </p>
             )}
           </div>
-          {/* 구매 타입 선택 */}
           <Select onValueChange={(value) => setPurchaseType(value as "basic" | "premium")}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select type" />
@@ -189,14 +177,12 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
               <SelectItem value="premium">Premium</SelectItem>
             </SelectContent>
           </Select>
-          {/* 콘텐츠 URL 입력 */}
           <Input
             placeholder="Image/Video URL (optional)"
             value={contentUrl}
             onChange={(e) => setContentUrl(e.target.value)}
             className="w-full"
           />
-          {/* Premium 타입 안내 */}
           {purchaseType === "premium" && (
             <p className="text-sm text-blue-600">
               Premium includes GIF/Video support and social media highlights!
