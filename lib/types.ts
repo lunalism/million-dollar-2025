@@ -4,10 +4,16 @@
 export type Pixel = {
     x: number; // 픽셀의 x 좌표
     y: number; // 픽셀의 y 좌표
-    size: number; // 픽셀 블록의 크기 (예: 10은 10×10 블록)
+    width: number; // 픽셀 블록의 가로 크기
+    height: number; // 픽셀 블록의 세로 크기
     owner: string; // 픽셀 블록의 소유자 이름
     content: string; // 픽셀 블록에 표시할 콘텐츠 URL (이미지 또는 비디오)
     purchaseType: "basic" | "premium"; // 구매 타입: Basic 또는 Premium
+  };
+
+// purchasedPixels 상태를 해시맵으로 관리하기 위한 타입
+export type PixelMap = {
+    [key: string]: Pixel;
 };
 
 // 그리드에서 렌더링할 픽셀 데이터를 나타내는 타입
