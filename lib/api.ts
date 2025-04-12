@@ -8,7 +8,7 @@ import { Pixel } from "@/lib/types"; // 타입 정의
 
 // 환경 변수에서 Supabase URL과 Anon Key를 가져옵니다.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
 
 // Supabase URL과 Anon Key가 정의되지 않았을 경우 에러를 발생시킵니다.
 // 이는 환경 변수가 누락되었을 때 개발자가 문제를 빠르게 파악할 수 있도록 돕습니다.
