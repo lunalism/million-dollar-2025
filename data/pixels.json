@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "x": 130,
+    "y": 130,
+    "size": 10,
+    "owner": "User",
+    "content": "ㄹㅇㄴㅁㄹㅇㄴㅁㄹㅇㄹ",
+    "purchaseType": "premium"
+  }
+]

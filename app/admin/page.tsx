@@ -6,7 +6,14 @@
 import { useState, useEffect } from "react"; // React 훅
 import { useRouter } from "next/navigation"; // 라우팅을 위한 훅
 import { getPixels, savePixels } from "@/lib/api"; // API 함수
-import { supabase, getAboutContent, updateAboutContent } from "@/lib/supabase"; // Supabase 클라이언트 및 함수
+import {
+  supabase,
+  getAboutContent,
+  updateAboutContent,
+  getFAQItems,
+  upsertFAQItem,
+  deleteFAQItem,
+} from "@/lib/supabase"; // Supabase 클라이언트 및 함수
 import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
 import { Input } from "@/components/ui/input"; // 입력 필드 컴포넌트
 import {
@@ -17,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"; // 테이블 컴포넌트
-import { Pixel, AboutContent, FAQItem } from "@/lib/types"; // 타입 정의
+import { Pixel, AboutContent } from "@/lib/types"; // 타입 정의
 import ReactQuill from "react-quill"; // React Quill 에디터
 import "react-quill/dist/quill.snow.css"; // React Quill 스타일
 import debounce from "lodash/debounce"; // 디바운싱 유틸리티
@@ -32,6 +39,13 @@ const quillModules = {
     ["clean"],
   ],
 };
+
+// FAQ 항목 타입 정의 (faq 테이블 구조에 맞춤)
+interface FAQItem {
+  id: number;
+  question: string;
+  answer: string;
+}
 
 // Admin 페이지 컴포넌트
 export default function Admin() {
@@ -49,16 +63,23 @@ export default function Admin() {
     vision: "",
     howHelp: "",
   }); // 수정 중인 About 콘텐츠 상태
-  const [editFAQ, setEditFAQ] = useState<FAQItem[]>([]); // 수정 중인 FAQ 상태
+  const [faqItems, setFaqItems] = useState<FAQItem[]>([]); // FAQ 데이터 상태
+  const [editFAQItem, setEditFAQItem] = useState<FAQItem | null>(null); // 수정 중인 FAQ 항목
+  const [newFAQQuestion, setNewFAQQuestion] = useState(""); // 새 FAQ 질문
+  const [newFAQAnswer, setNewFAQAnswer] = useState(""); // 새 FAQ 답변
   const [activeTab, setActiveTab] = useState("Manage Pixels"); // 현재 선택된 탭
 
-  // 디바운싱된 상태 업데이트 함수 (useCallback 제거)
+  // 디바운싱된 상태 업데이트 함수
   const debouncedSetEditAbout = debounce((newEditAbout: AboutContent) => {
     setEditAbout(newEditAbout);
   }, 300);
 
-  const debouncedSetEditFAQ = debounce((newEditFAQ: FAQItem[]) => {
-    setEditFAQ(newEditFAQ);
+  const debouncedSetEditFAQItem = debounce((newFAQItem: FAQItem) => {
+    setEditFAQItem(newFAQItem);
+  }, 300);
+
+  const debouncedSetNewFAQAnswer = debounce((value: string) => {
+    setNewFAQAnswer(value);
   }, 300);
 
   // 데이터 로드
@@ -68,6 +89,8 @@ export default function Admin() {
       const pixelData: Pixel[] = await getPixels();
       // Supabase에서 About 콘텐츠 가져오기
       const contentData = await getAboutContent();
+      // Supabase에서 FAQ 데이터 가져오기
+      const faqData = await getFAQItems();
       // 상태 업데이트
       setPixels(pixelData);
       // About 콘텐츠를 카테고리별로 매핑
@@ -76,16 +99,9 @@ export default function Admin() {
         vision: contentData.find((item) => item.category === "Our Vision")?.content || "",
         howHelp: contentData.find((item) => item.category === "How You Can Help")?.content || "",
       };
-      // FAQ 콘텐츠 필터링
-      const faqItems = contentData
-        .filter((item) => item.category === "How to Buy Pixels")
-        .map((item) => ({
-          question: item.title,
-          answer: item.content,
-        }));
       setContentItems(contentData);
       setEditAbout(aboutContent);
-      setEditFAQ(faqItems);
+      setFaqItems(faqData);
     };
     loadData();
   }, []); // 컴포넌트 마운트 시 실행
@@ -144,15 +160,62 @@ export default function Admin() {
     }
   };
 
-  // FAQ 저장 핸들러
-  const handleSaveFAQ = async () => {
+  // FAQ 항목 추가 핸들러
+  const handleAddFAQ = async () => {
+    if (!newFAQQuestion || !newFAQAnswer) {
+      alert("Please fill in both question and answer.");
+      return;
+    }
     try {
-      // FAQ 콘텐츠를 Supabase에 저장 (현재는 "How to Buy Pixels" 카테고리만 사용)
-      await updateAboutContent("How to Buy Pixels", "How to Buy Pixels", editFAQ[0]?.answer || "");
-      alert("FAQ updated!");
+      // Supabase에 새 FAQ 항목 추가
+      const newItem = await upsertFAQItem(null, newFAQQuestion, newFAQAnswer);
+      setFaqItems([...faqItems, newItem[0]]);
+      // 입력 필드 초기화
+      setNewFAQQuestion("");
+      setNewFAQAnswer("");
+      alert("FAQ item added!");
     } catch (error) {
-      console.error("Failed to save FAQ:", error);
-      alert("Failed to save FAQ.");
+      console.error("Failed to add FAQ item:", error);
+      alert("Failed to add FAQ item.");
+    }
+  };
+
+  // FAQ 항목 수정 시작 핸들러
+  const handleEditFAQ = (item: FAQItem) => {
+    setEditFAQItem({ ...item });
+  };
+
+  // FAQ 항목 저장 핸들러
+  const handleSaveFAQ = async () => {
+    if (!editFAQItem) return;
+    try {
+      // Supabase에 FAQ 항목 업데이트
+      const updatedItem = await upsertFAQItem(
+        editFAQItem.id,
+        editFAQItem.question,
+        editFAQItem.answer
+      );
+      setFaqItems(
+        faqItems.map((item) => (item.id === updatedItem[0].id ? updatedItem[0] : item))
+      );
+      setEditFAQItem(null);
+      alert("FAQ item updated!");
+    } catch (error) {
+      console.error("Failed to update FAQ item:", error);
+      alert("Failed to update FAQ item.");
+    }
+  };
+
+  // FAQ 항목 삭제 핸들러
+  const handleDeleteFAQ = async (id: number) => {
+    try {
+      // Supabase에서 FAQ 항목 삭제
+      await deleteFAQItem(id);
+      setFaqItems(faqItems.filter((item) => item.id !== id));
+      alert("FAQ item deleted!");
+    } catch (error) {
+      console.error("Failed to delete FAQ item:", error);
+      alert("Failed to delete FAQ item.");
     }
   };
 
@@ -210,187 +273,227 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* 탭 콘텐츠 */}
-        {activeTab === "Manage Pixels" && (
-          <>
-            {/* 픽셀 관리 섹션 */}
-            <section className="mb-12">
-              {/* 섹션 제목 */}
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage Pixels</h2>
-              {/* 픽셀 데이터 테이블 */}
-              <Table>
-                {/* 테이블 헤더 */}
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Content</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                {/* 테이블 본문 */}
-                <TableBody>
-                  {pixels.map((pixel) => (
-                    <TableRow key={`${pixel.x}-${pixel.y}`}>
-                      <TableCell>({pixel.x}, {pixel.y})</TableCell>
-                      <TableCell>{pixel.owner}</TableCell>
-                      <TableCell>{pixel.content || "N/A"}</TableCell>
-                      <TableCell>{pixel.purchaseType}</TableCell>
-                      <TableCell>
-                        {/* 수정 버튼 */}
-                        <Button
-                          variant="outline"
-                          className="mr-2"
-                          onClick={() => handleEditPixel(pixel)}
-                        >
-                          Edit
-                        </Button>
-                        {/* 삭제 버튼 */}
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleDeletePixel(pixel.x, pixel.y)}
-                        >
-                          Delete
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </section>
-
-            {/* 픽셀 수정 폼 */}
-            {editPixel && (
-              <section className="mb-12 p-6 border rounded-lg">
+        {/* 탭 콘텐츠: 고정된 가로 사이즈를 위해 w-full 설정 */}
+        <div className="w-full">
+          {activeTab === "Manage Pixels" && (
+            <>
+              {/* 픽셀 관리 섹션: 고정된 가로 길이 */}
+              <section className="mb-12 w-[1200px]">
                 {/* 섹션 제목 */}
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit Pixel</h2>
-                {/* 수정 폼 */}
-                <div className="space-y-4">
-                  {/* 소유자 입력 필드 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Owner</label>
-                    <Input
-                      value={editPixel.owner}
-                      onChange={(e) => setEditPixel({ ...editPixel, owner: e.target.value })} // 소유자 업데이트
-                    />
-                  </div>
-                  {/* 콘텐츠 URL 입력 필드 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Content URL</label>
-                    <Input
-                      value={editPixel.content}
-                      onChange={(e) => setEditPixel({ ...editPixel, content: e.target.value })} // 콘텐츠 URL 업데이트
-                    />
-                  </div>
-                  {/* 구매 타입 입력 필드 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Type</label>
-                    <Input
-                      value={editPixel.purchaseType}
-                      onChange={(e) =>
-                        setEditPixel({
-                          ...editPixel,
-                          purchaseType: e.target.value as "basic" | "premium", // 구매 타입 업데이트
-                        })
-                      }
-                    />
-                  </div>
-                  {/* 저장 버튼 */}
-                  <Button onClick={handleSavePixel} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                    Save Changes
-                  </Button>
+                <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage Pixels</h2>
+                {/* 픽셀 데이터 테이블: 고정된 가로 길이 */}
+                <div className="overflow-x-auto">
+                  <Table className="w-full">
+                    {/* 테이블 헤더 */}
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-1/5">Position</TableHead>
+                        <TableHead className="w-1/5">Owner</TableHead>
+                        <TableHead className="w-2/5">Content</TableHead>
+                        <TableHead className="w-1/5">Type</TableHead>
+                        <TableHead className="w-1/5">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    {/* 테이블 본문 */}
+                    <TableBody>
+                      {pixels.map((pixel) => (
+                        <TableRow key={`${pixel.x}-${pixel.y}`}>
+                          <TableCell>({pixel.x}, {pixel.y})</TableCell>
+                          <TableCell>{pixel.owner}</TableCell>
+                          <TableCell>{pixel.content || "N/A"}</TableCell>
+                          <TableCell>{pixel.purchaseType}</TableCell>
+                          <TableCell>
+                            {/* 수정 버튼 */}
+                            <Button style={{ width: "80px" }} variant="outline" className="mr-2" onClick={() => handleEditPixel(pixel)}>
+                              Edit
+                            </Button>
+                            {/* 삭제 버튼 */}
+                            <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeletePixel(pixel.x, pixel.y)}>
+                              Delete
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </section>
-            )}
-          </>
-        )}
 
-        {activeTab === "Manage About" && (
-          <section className="mb-12 p-6 border rounded-lg">
-            {/* 섹션 제목 */}
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit About Page</h2>
-            {/* 수정 폼 */}
-            <div className="space-y-4">
-              {/* Why We Started This 입력 필드 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Why We Started This</label>
-                <ReactQuill
-                  value={editAbout.whyStarted}
-                  onChange={(value) => debouncedSetEditAbout({ ...editAbout, whyStarted: value })}
-                  modules={quillModules}
-                  className="bg-white"
-                />
-              </div>
-              {/* Our Vision 입력 필드 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Our Vision</label>
-                <ReactQuill
-                  value={editAbout.vision}
-                  onChange={(value) => debouncedSetEditAbout({ ...editAbout, vision: value })}
-                  modules={quillModules}
-                  className="bg-white"
-                />
-              </div>
-              {/* How You Can Help 입력 필드 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">How You Can Help</label>
-                <ReactQuill
-                  value={editAbout.howHelp}
-                  onChange={(value) => debouncedSetEditAbout({ ...editAbout, howHelp: value })}
-                  modules={quillModules}
-                  className="bg-white"
-                />
-              </div>
-              {/* 저장 버튼 */}
-              <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                Save About Changes
-              </Button>
-            </div>
-          </section>
-        )}
+              {/* 픽셀 수정 폼: 고정된 가로 길이 */}
+              {editPixel && (
+                <section className="mb-12 p-6 border rounded-lg w-[1200px]">
+                  {/* 섹션 제목 */}
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit Pixel</h2>
+                  {/* 수정 폼 */}
+                  <div className="space-y-4">
+                    {/* 소유자 입력 필드 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Owner</label>
+                      <Input
+                        value={editPixel.owner}
+                        onChange={(e) => setEditPixel({ ...editPixel, owner: e.target.value })} // 소유자 업데이트
+                      />
+                    </div>
+                    {/* 콘텐츠 URL 입력 필드 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Content URL</label>
+                      <Input
+                        value={editPixel.content}
+                        onChange={(e) => setEditPixel({ ...editPixel, content: e.target.value })} // 콘텐츠 URL 업데이트
+                      />
+                    </div>
+                    {/* 구매 타입 입력 필드 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Type</label>
+                      <Input
+                        value={editPixel.purchaseType}
+                        onChange={(e) =>
+                          setEditPixel({
+                            ...editPixel,
+                            purchaseType: e.target.value as "basic" | "premium", // 구매 타입 업데이트
+                          })
+                        }
+                      />
+                    </div>
+                    {/* 저장 버튼 */}
+                    <Button onClick={handleSavePixel} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                      Save Changes
+                    </Button>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
 
-        {activeTab === "Manage FAQ" && (
-          <section className="mb-12 p-6 border rounded-lg">
-            {/* 섹션 제목 */}
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit FAQ</h2>
-            {/* FAQ 항목 수정 폼 */}
-            {editFAQ.map((item, index) => (
-              <div key={index} className="space-y-4 mb-4 p-4 border rounded-lg">
-                {/* 질문 입력 필드 */}
+          {activeTab === "Manage About" && (
+            <section className="mb-12 p-6 border rounded-lg w-[1200px]">
+              {/* 섹션 제목 */}
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit About Page</h2>
+              {/* 수정 폼 */}
+              <div className="space-y-4">
+                {/* Why We Started This 입력 필드 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Question</label>
-                  <Input
-                    value={item.question}
-                    onChange={(e) => {
-                      const newFAQ = [...editFAQ];
-                      newFAQ[index] = { ...newFAQ[index], question: e.target.value }; // 질문 업데이트
-                      setEditFAQ(newFAQ);
-                    }}
-                  />
-                </div>
-                {/* 답변 입력 필드 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Answer</label>
+                  <label className="block text-sm font-medium text-gray-700">Why We Started This</label>
                   <ReactQuill
-                    value={item.answer}
-                    onChange={(value) => {
-                      const newFAQ = [...editFAQ];
-                      newFAQ[index] = { ...newFAQ[index], answer: value }; // 답변 업데이트
-                      debouncedSetEditFAQ(newFAQ);
-                    }}
+                    value={editAbout.whyStarted}
+                    onChange={(value) => debouncedSetEditAbout({ ...editAbout, whyStarted: value })}
                     modules={quillModules}
                     className="bg-white"
                   />
                 </div>
+                {/* Our Vision 입력 필드 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Our Vision</label>
+                  <ReactQuill
+                    value={editAbout.vision}
+                    onChange={(value) => debouncedSetEditAbout({ ...editAbout, vision: value })}
+                    modules={quillModules}
+                    className="bg-white"
+                  />
+                </div>
+                {/* How You Can Help 입력 필드 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">How You Can Help</label>
+                  <ReactQuill
+                    value={editAbout.howHelp}
+                    onChange={(value) => debouncedSetEditAbout({ ...editAbout, howHelp: value })}
+                    modules={quillModules}
+                    className="bg-white"
+                  />
+                </div>
+                {/* 저장 버튼 */}
+                <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                  Save About Changes
+                </Button>
               </div>
-            ))}
-            {/* 저장 버튼 */}
-            <Button onClick={handleSaveFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-              Save FAQ Changes
-            </Button>
-          </section>
-        )}
+            </section>
+          )}
+
+          {activeTab === "Manage FAQ" && (
+            <section className="mb-12 p-6 border rounded-lg w-[1200px]">
+              {/* 섹션 제목 */}
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage FAQ</h2>
+              {/* FAQ 항목 리스트 */}
+              <div className="space-y-4 mb-8">
+                {faqItems.map((item) => (
+                  <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800">{item.question}</h3>
+                      <div
+                        className="text-gray-600 mt-2"
+                        dangerouslySetInnerHTML={{ __html: item.answer }}
+                      />
+                    </div>
+                    <div className="space-x-2 ml-10">
+                      <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditFAQ(item)}>
+                        Edit
+                      </Button>
+                      <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeleteFAQ(item.id)}>
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* FAQ 추가 폼 */}
+              <div className="space-y-4 mb-8 p-4 border rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-800">Add New FAQ</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Question</label>
+                  <Input
+                    value={newFAQQuestion}
+                    onChange={(e) => setNewFAQQuestion(e.target.value)}
+                    placeholder="Enter question"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Answer</label>
+                  <ReactQuill
+                    value={newFAQAnswer}
+                    onChange={(value) => debouncedSetNewFAQAnswer(value)}
+                    modules={quillModules}
+                    className="bg-white"
+                  />
+                </div>
+                <Button onClick={handleAddFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                  Add FAQ
+                </Button>
+              </div>
+
+              {/* FAQ 수정 폼 */}
+              {editFAQItem && (
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800">Edit FAQ</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Question</label>
+                    <Input value={editFAQItem.question} onChange={(e) =>
+                        setEditFAQItem({ ...editFAQItem, question: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Answer</label>
+                    <ReactQuill
+                      value={editFAQItem.answer}
+                      onChange={(value) => debouncedSetEditFAQItem({ ...editFAQItem, answer: value })}
+                      modules={quillModules}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-x-2">
+                    <Button onClick={handleSaveFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                      Save Changes
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditFAQItem(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );
