@@ -19,6 +19,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Supabase 클라이언트를 생성합니다.
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// 파일 이름을 정규화하는 함수입니다.
+// 한글, 공백, 특수 문자를 제거하고 영문자와 숫자, 허용된 문자(-, _, .)만 남깁니다.
+// @param {string} fileName - 원본 파일 이름
+// @returns {string} 정규화된 파일 이름
+const normalizeFileName = (fileName: string): string => {
+  // 파일 확장자 분리
+  const extension = fileName.substring(fileName.lastIndexOf("."));
+  const nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf("."));
+
+  // 한글, 공백, 특수 문자를 제거하고 영문자와 숫자로 변환
+  const normalizedName = nameWithoutExtension
+    .replace(/[^a-zA-Z0-9-_]/g, "-") // 특수 문자를 -로 대체
+    .replace(/-+/g, "-") // 연속된 -를 하나로 줄임
+    .replace(/^-|-$/g, ""); // 시작과 끝의 - 제거
+
+  return `${normalizedName}${extension}`;
+};
+
 // Supabase 데이터베이스에서 모든 픽셀 데이터를 가져오는 함수입니다.
 // @returns {Promise<Pixel[]>} 픽셀 데이터 배열을 반환합니다. 에러 발생 시 빈 배열을 반환합니다.
 export const getPixels = async (): Promise<Pixel[]> => {
@@ -49,14 +67,16 @@ export const savePixels = async (pixels: Pixel[]): Promise<void> => {
 // @throws {Error} 파일 업로드 또는 공개 URL 생성에 실패할 경우 에러를 던집니다.
 export const uploadFile = async (file: File): Promise<string> => {
   // 고유한 파일 이름을 생성하기 위해 현재 타임스탬프와 파일 이름을 결합합니다.
-  const fileName = `${Date.now()}-${file.name}`;
-  
+  const originalFileName = `${Date.now()}-${file.name}`;
+  // 파일 이름을 정규화하여 한글, 공백, 특수 문자를 제거합니다.
+  const fileName = normalizeFileName(originalFileName);
+
   // Supabase Storage의 `pixel-content` 버킷에 파일을 업로드합니다.
   const { error } = await supabase.storage.from("pixel-content").upload(fileName, file);
   if (error) {
     // 업로드 실패 시 에러 메시지를 콘솔에 출력하고 예외를 던집니다.
     console.error("Error uploading file to Supabase Storage:", error.message);
-    throw new Error(`Failed to upload file: ${error.message}`);
+    throw new Error(`Failed to upload file: ${error.message}. File names must contain only letters, numbers, hyphens, underscores, and periods.`);
   }
 
   // 업로드된 파일의 공개 URL을 가져옵니다.
