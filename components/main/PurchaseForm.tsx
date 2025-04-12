@@ -55,8 +55,8 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
           setHeight(blockHeight.toString());
           setError("");
         })
-        .catch(() => {
-          setError("Failed to calculate image size. Please set width and height manually.");
+        .catch((err) => {
+          setError(`Failed to calculate image size: ${err.message}. Please set width and height manually.`);
         });
 
       return () => URL.revokeObjectURL(previewUrl);
@@ -77,8 +77,8 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
           setHeight(blockHeight.toString());
           setError("");
         })
-        .catch(() => {
-          setError("Failed to calculate image size. Please set width and height manually.");
+        .catch((err) => {
+          setError(`Failed to calculate image size: ${err.message}. Please set width and height manually.`);
         });
     }
   }, [contentType, contentUrl, blockSize]);
@@ -174,10 +174,18 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
         contentWidth = size.width;
         contentHeight = size.height;
       } else if (contentType === "file" && contentFile) {
-        finalContentUrl = await uploadFile(contentFile);
-        const size = await getImageSize(contentFile);
-        contentWidth = size.width;
-        contentHeight = size.height;
+        try {
+          finalContentUrl = await uploadFile(contentFile);
+        } catch (err) {
+          throw new Error(`Failed to upload file to Supabase Storage: ${err.message}`);
+        }
+        try {
+          const size = await getImageSize(contentFile);
+          contentWidth = size.width;
+          contentHeight = size.height;
+        } catch (err) {
+          throw new Error(`Failed to calculate image size: ${err.message}`);
+        }
       }
 
       // 새로운 픽셀 객체 생성 (width와 height는 픽셀 단위로 저장)
@@ -196,7 +204,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       const amount = calculatePrice();
       onPurchase(pixel, amount);
     } catch (err) {
-      setError("Failed to process content. Please try again.");
+      setError(err.message || "Failed to process content. Please try again.");
     } finally {
       setIsLoading(false);
     }
