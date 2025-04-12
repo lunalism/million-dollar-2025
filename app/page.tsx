@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
 import { Pixel, PixelMap } from "@/lib/types"; // 픽셀 타입 정의
 import PixelGrid from "@/components/main/PixelGrid"; // 픽셀 그리드 컴포넌트
 import PurchaseForm from "@/components/main/PurchaseForm"; // 구매 폼 컴포넌트
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"; // 줌/팬 기능 컴포넌트
 import debounce from "lodash/debounce"; // 디바운싱 유틸리티
 import {
   Dialog,
@@ -99,10 +98,7 @@ export default function Home() {
   const [coordinateX, setCoordinateX] = useState<string>("0");
   const [coordinateY, setCoordinateY] = useState<string>("0");
   const [coordinateError, setCoordinateError] = useState<string>("");
-  const [zoomLevel, setZoomLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [scrollPosition, setScrollPosition] = useState({ scrollLeft: 0, scrollTop: 0 });
-  const [focusedBlock, setFocusedBlock] = useState<{ x: number; y: number } | null>(null);
   const [gridWidth, setGridWidth] = useState(1500);
   const [gridHeight, setGridHeight] = useState(1000);
 
@@ -239,40 +235,6 @@ export default function Home() {
     // 그리드 업데이트 후 추가 작업이 필요하면 여기에
   };
 
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 0.5, 5));
-  };
-
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 0.5, 0.5));
-  };
-
-  const handleScroll = (scrollInfo: { scrollLeft: number; scrollTop: number }) => {
-    setScrollPosition(scrollInfo);
-    const viewportWidth = gridWidth;
-    const viewportHeight = gridHeight;
-    const blockSize = BLOCK_SIZE * zoomLevel;
-    const centerX = (scrollInfo.scrollLeft + viewportWidth / 2) / blockSize;
-    const centerY = (scrollInfo.scrollTop + viewportHeight / 2) / blockSize;
-    const blockX = Math.floor(centerX) * BLOCK_SIZE;
-    const blockY = Math.floor(centerY) * BLOCK_SIZE;
-    setFocusedBlock({ x: blockX, y: blockY });
-  };
-
-  const handlePinchZoom = (ref: { state: { scale: number; positionX: number; positionY: number } }) => {
-    const { scale, positionX, positionY } = ref.state;
-    setZoomLevel(scale);
-
-    const viewportWidth = gridWidth;
-    const viewportHeight = gridHeight;
-    const blockSize = BLOCK_SIZE * scale;
-    const centerX = (-positionX + viewportWidth / 2) / blockSize;
-    const centerY = (-positionY + viewportHeight / 2) / blockSize;
-    const blockX = Math.floor(centerX) * BLOCK_SIZE;
-    const blockY = Math.floor(centerY) * BLOCK_SIZE;
-    setFocusedBlock({ x: blockX, y: blockY });
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -307,46 +269,17 @@ export default function Home() {
           Buy Pixel Now
         </Button>
 
-        <div className="flex items-center space-x-2 mb-4">
-          <Button onClick={handleZoomIn} className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2">
-            Zoom In
-          </Button>
-          <span className="text-sm text-gray-600">
-            Zoom: {zoomLevel.toFixed(1)}x
-          </span>
-          <Button onClick={handleZoomOut} className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2">
-            Zoom Out
-          </Button>
-        </div>
-
         <div className="relative">
-          <TransformWrapper
-            initialScale={1}
-            minScale={0.5}
-            maxScale={5}
-            onZoom={handlePinchZoom}
-            panning={{ disabled: true }}
-          >
-            <TransformComponent>
-              <div style={{ width: gridWidth, height: gridHeight }}>
-                <PixelGrid
-                  pixelMap={state.pixelMap}
-                  selected={selected}
-                  zoomLevel={zoomLevel}
-                  focusedBlock={focusedBlock}
-                  scrollPosition={scrollPosition}
-                  onBlockClick={handleBlockClick}
-                  onGridUpdate={handleGridUpdate}
-                  onScroll={handleScroll}
-                  gridWidth={gridWidth}
-                  gridHeight={gridHeight}
-                  scrollDuration={500}
-                  scrollEasing="easeOutQuad"
-                />
-              </div>
-            </TransformComponent>
-          </TransformWrapper>
-
+          <div style={{ width: gridWidth, height: gridHeight }}>
+            <PixelGrid
+              pixelMap={state.pixelMap}
+              selected={selected}
+              onBlockClick={handleBlockClick}
+              onGridUpdate={handleGridUpdate}
+              gridWidth={gridWidth}
+              gridHeight={gridHeight}
+            />
+          </div>
           <Image
             src="/example.png"
             alt="Example Image"
@@ -424,7 +357,6 @@ export default function Home() {
           </DialogContent>
         </Dialog>
 
-        {/* 픽셀 구매 다이얼로그 */}
         <PurchaseForm
           selected={selected}
           isOpen={isDialogOpen}
