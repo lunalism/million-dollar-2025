@@ -1,7 +1,11 @@
 // lib/api.ts
-
 // 필요한 타입 임포트
 import { Pixel, Content } from "./types"; // 픽셀 및 콘텐츠 타입 정의
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 픽셀 데이터를 가져오는 함수
 export async function getPixels(): Promise<Pixel[]> {
@@ -42,6 +46,19 @@ export async function getContent(): Promise<Content> {
     // JSON 응답을 파싱하여 Content 타입으로 반환
     return res.json();
 }
+
+export const uploadFile = async (file: File): Promise<string> => {
+        const fileName = `${Date.now()}-${file.name}`;
+        const { error } = await supabase.storage.from("pixel-content").upload(fileName, file);
+        if (error) {
+            console.error("Error uploading file:", error);
+            throw error;
+        }
+    
+        const { data } = supabase.storage.from("pixel-content").getPublicUrl(fileName);
+        return data.publicUrl;
+  };
+
 
 // 콘텐츠 데이터를 저장하는 함수
 export async function saveContent(content: Content): Promise<Content> {
