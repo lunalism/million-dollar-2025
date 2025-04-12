@@ -35,7 +35,7 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
 
     // 1픽셀 단위 격자선 그리기
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)"; // 격자선 색상 (흰색, 투명도 낮게)
+    ctx.strokeStyle = "#FFFFFF"; // 격자선 색상 (흰색, 투명도 없음)
     ctx.lineWidth = 0.5; // 격자선 두께
 
     // 세로선 그리기 (1픽셀 단위)
@@ -82,7 +82,7 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
 
     // 격자선 다시 그리기
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.strokeStyle = "#FFFFFF"; // 격자선 색상 (흰색, 투명도 없음)
     ctx.lineWidth = 0.5;
 
     for (let x = 0; x <= gridWidth; x++) {
@@ -122,7 +122,7 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
 
     // 마우스 hover 픽셀 테두리 표시
     if (hoverPixel) {
-      ctx.strokeStyle = "rgba(255, 255, 0, 0.8)"; // 노란색 테두리
+      ctx.strokeStyle = "rgba(15, 76, 129, 0.8)"; // 팬톤 Classic Blue 테두리
       ctx.lineWidth = 2;
       ctx.strokeRect(hoverPixel.x, hoverPixel.y, 1, 1); // 1x1 픽셀 테두리
     }
