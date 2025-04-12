@@ -24,7 +24,7 @@ export default function Home() {
   const pathname = usePathname();
   const GRID_WIDTH = 1500;
   const GRID_HEIGHT = 1000;
-  const BLOCK_SIZE = 10;
+  const BLOCK_SIZE = 10; // 더 이상 사용하지 않지만, 호환성을 위해 유지
 
   const { pixelMap, pixelList, isLoading, addPixel } = usePixelData();
   const [selected, setSelected] = useState<{ x: number; y: number; width?: number; height?: number } | null>(null);
@@ -171,7 +171,7 @@ export default function Home() {
             onClose={() => setIsDialogOpen(false)}
             onPurchase={handlePurchase}
             pixelMap={pixelMap}
-            blockSize={BLOCK_SIZE} // blockSize prop 추가
+            blockSize={BLOCK_SIZE}
           />
 
           <PaymentDialog

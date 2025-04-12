@@ -1,27 +1,20 @@
 // components/main/PixelGrid.tsx
-
 import { useEffect, useRef } from "react";
-import { Pixel, PixelMap } from "@/lib/types";
+import { PixelMap } from "@/lib/types";
 
+// 픽셀 그리드의 props 타입 정의
 interface PixelGridProps {
-  pixelMap: PixelMap;
-  selected: { x: number; y: number; width?: number; height?: number } | null;
-  onBlockClick: (x: number, y: number) => void;
-  onGridUpdate: () => void;
-  gridWidth: number;
-  gridHeight: number;
+  pixelMap: PixelMap; // 픽셀 데이터 맵
+  selected: { x: number; y: number; width?: number; height?: number } | null; // 선택된 좌표 및 크기
+  onBlockClick: (x: number, y: number) => void; // 블록 클릭 핸들러
+  onGridUpdate: () => void; // 그리드 업데이트 핸들러
+  gridWidth: number; // 그리드 너비 (픽셀 단위)
+  gridHeight: number; // 그리드 높이 (픽셀 단위)
 }
 
-export default function PixelGrid({
-  pixelMap,
-  selected,
-  onBlockClick,
-  onGridUpdate,
-  gridWidth,
-  gridHeight,
-}: PixelGridProps) {
+// 픽셀 그리드 컴포넌트
+export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpdate, gridWidth, gridHeight }: PixelGridProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const BLOCK_SIZE = 10; // 고정된 블록 크기
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -30,52 +23,43 @@ export default function PixelGrid({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // 캔버스 크기 설정
     canvas.width = gridWidth;
     canvas.height = gridHeight;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+    // 캔버스 초기화
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, gridWidth, gridHeight);
 
-    // 수직선 그리기
-    for (let x = 0; x <= gridWidth; x += BLOCK_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, gridHeight);
-      ctx.stroke();
-    }
-
-    // 수평선 그리기
-    for (let y = 0; y <= gridHeight; y += BLOCK_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(gridWidth, y);
-      ctx.stroke();
-    }
-
-    // 구매된 픽셀 그리기
-    Object.values(pixelMap).forEach((pixel: Pixel) => {
-      const x = pixel.x;
-      const y = pixel.y;
-      const width = pixel.width;
-      const height = pixel.height;
-      ctx.fillStyle = pixel.purchaseType === "premium" ? "rgba(255, 215, 0, 0.5)" : "rgba(0, 128, 0, 0.5)";
-      ctx.fillRect(x, y, width, height);
+    // 픽셀 데이터 렌더링
+    Object.values(pixelMap).forEach((pixel) => {
+      if (pixel.content) {
+        const img = new window.Image();
+        img.src = pixel.content;
+        img.onload = () => {
+          ctx.drawImage(img, pixel.x, pixel.y, pixel.width, pixel.height);
+          onGridUpdate();
+        };
+        img.onerror = () => {
+          console.error(`Failed to load image: ${pixel.content}`);
+        };
+      }
     });
 
-    // 선택된 블록 표시
-    if (selected && selected.width && selected.height) {
-      const x = selected.x;
-      const y = selected.y;
-      const width = selected.width;
-      const height = selected.height;
-      ctx.strokeStyle = "red";
+    // 선택된 영역 표시
+    if (selected) {
+      ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
       ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, width, height);
+      ctx.strokeRect(
+        selected.x,
+        selected.y,
+        selected.width || 100, // 픽셀 단위
+        selected.height || 100 // 픽셀 단위
+      );
     }
-
-    onGridUpdate();
   }, [pixelMap, selected, gridWidth, gridHeight, onGridUpdate]);
 
+  // 캔버스 클릭 핸들러
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -83,9 +67,8 @@ export default function PixelGrid({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const blockX = Math.floor(x / BLOCK_SIZE) * BLOCK_SIZE;
-    const blockY = Math.floor(y / BLOCK_SIZE) * BLOCK_SIZE;
-    onBlockClick(blockX, blockY);
+
+    onBlockClick(Math.floor(x), Math.floor(y));
   };
 
   return (
@@ -93,6 +76,7 @@ export default function PixelGrid({
       ref={canvasRef}
       onClick={handleClick}
       style={{ width: gridWidth, height: gridHeight }}
+      className="border border-gray-300"
     />
   );
 }
