@@ -1,10 +1,10 @@
 // app/admin/page.tsx
-
 "use client";
 
 // 필요한 모듈 임포트
 import { useState, useEffect } from "react"; // React 훅
 import { useRouter } from "next/navigation"; // 라우팅을 위한 훅
+import dynamic from "next/dynamic"; // 동적 임포트
 import { getPixels, savePixels } from "@/lib/api"; // API 함수
 import {
   supabase,
@@ -25,9 +25,15 @@ import {
   TableRow,
 } from "@/components/ui/table"; // 테이블 컴포넌트
 import { Pixel, AboutContent } from "@/lib/types"; // 타입 정의
-import ReactQuill from "react-quill"; // React Quill 에디터
-import "react-quill/dist/quill.snow.css"; // React Quill 스타일
 import debounce from "lodash/debounce"; // 디바운싱 유틸리티
+
+// React Quill을 동적 임포트 (SSR 비활성화)
+const ReactQuill = dynamic(() => import("react-quill"), {
+  ssr: false, // SSG/SSR 비활성화
+});
+
+// React Quill 스타일 임포트 (클라이언트 측에서만 로드되도록 별도로 처리)
+import "react-quill/dist/quill.snow.css";
 
 // React Quill 에디터 설정
 const quillModules = {

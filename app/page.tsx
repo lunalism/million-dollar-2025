@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Header from "@/components/main/Header";
 import { Button } from "@/components/ui/button";
-import { Pixel } from "@/lib/types"; // Pixel 타입 임포트 확인
+import { Pixel } from "@/lib/types";
 import PixelGrid from "@/components/main/PixelGrid";
 import PurchaseForm from "@/components/main/PurchaseForm";
 import CoordinateDialog from "@/components/main/CoordinateDialog";
@@ -113,7 +113,7 @@ export default function Home() {
         <Header activePath={pathname} />
         <div className="flex flex-col items-center px-4">
           <p className="text-lg text-gray-600 mb-4">
-            Support an iOS app startup by buying pixels! 1 pixel = $0.1
+            Support an iOS app startup by buying pixels! 1 pixel = $0.01
           </p>
           <div className="mb-4 flex flex-col items-center w-full max-w-md">
             <p className="text-sm text-gray-500">
@@ -171,6 +171,7 @@ export default function Home() {
             onClose={() => setIsDialogOpen(false)}
             onPurchase={handlePurchase}
             pixelMap={pixelMap}
+            blockSize={BLOCK_SIZE} // blockSize prop 추가
           />
 
           <PaymentDialog
