@@ -10,6 +10,11 @@ export type Pixel = {
     purchaseType: "basic" | "premium"; // 구매 타입: Basic 또는 Premium
 };
 
+// purchasedPixels 상태를 해시맵으로 관리하기 위한 타입
+export type PixelMap = {
+    [key: string]: Pixel;
+};
+
 // 그리드에서 렌더링할 픽셀 데이터를 나타내는 타입
 export type GridPixel = {
     x: number; // 픽셀의 x 좌표

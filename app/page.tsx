@@ -8,24 +8,11 @@ import Image from "next/image"; // Next.js 이미지 컴포넌트
 import Header from "@/components/main/Header"; // 상단 헤더 컴포넌트
 import { getPixels, savePixels } from "@/lib/api"; // API 함수
 import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"; // 다이얼로그 컴포넌트
-import { Input } from "@/components/ui/input"; // 입력 필드 컴포넌트
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // 셀렉트 컴포넌트
-import { Pixel } from "@/lib/types"; // 픽셀 타입 정의
+import { Pixel, PixelMap } from "@/lib/types"; // 픽셀 타입 정의
 import PixelGrid from "@/components/main/PixelGrid"; // 픽셀 그리드 컴포넌트
+import PurchaseForm from "@/components/main/PurchaseForm"; // 구매 폼 컴포넌트
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"; // 줌/팬 기능 컴포넌트
 import debounce from "lodash/debounce"; // 디바운싱 유틸리티
-
-// purchasedPixels 상태를 해시맵으로 관리하기 위한 타입
-interface PixelMap {
-  [key: string]: Pixel;
-}
 
 // useReducer의 상태와 액션 타입 정의
 interface PixelState {
@@ -74,12 +61,8 @@ export default function Home() {
 
   // 상태 정의
   const [state, dispatch] = useReducer(pixelReducer, { pixelMap: {}, pixelList: [], changedPixels: [] }); // 픽셀 상태 관리
-  const [selected, setSelected] = useState<{ x: number; y: number; size: number } | null>(null); // 선택된 블록 정보
+  const [selected, setSelected] = useState<{ x: number; y: number; width?: number; height?: number } | null>(null); // 선택된 블록 정보
   const [isDialogOpen, setIsDialogOpen] = useState(false); // 다이얼로그 열림/닫힘 상태
-  const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic"); // 구매 타입 (Basic/Premium)
-  const [contentUrl, setContentUrl] = useState(""); // 콘텐츠 URL 입력 상태
-  const [sizeInput, setSizeInput] = useState<string>("10"); // 크기 입력 상태
-  const [sizeError, setSizeError] = useState<string>(""); // 크기 입력 에러 메시지
   const [zoomLevel, setZoomLevel] = useState(1); // 줌 레벨
   const [isLoading, setIsLoading] = useState(true); // 로딩 상태
   const [scrollPosition, setScrollPosition] = useState({ scrollLeft: 0, scrollTop: 0 }); // 스크롤 위치
@@ -166,7 +149,6 @@ export default function Home() {
   useEffect(() => {
     const updateGridSize = () => {
       const windowWidth = window.innerWidth;
-      // const windowHeight = window.innerHeight;
       const maxWidth = Math.min(windowWidth - 32, GRID_WIDTH);
       const aspectRatio = GRID_WIDTH / GRID_HEIGHT;
       const newWidth = Math.min(maxWidth, windowWidth - 32);
@@ -188,14 +170,7 @@ export default function Home() {
 
   // 블록 클릭 시 다이얼로그 열기
   const handleBlockClick = (x: number, y: number) => {
-    // 크기 입력값 검증
-    const size = parseInt(sizeInput, 10);
-    if (isNaN(size) || size < BLOCK_SIZE || size % BLOCK_SIZE !== 0) {
-      setSizeError("Size must be a multiple of 10 and at least 10 (e.g., 10, 20, 30).");
-      return;
-    }
-    setSizeError("");
-    setSelected({ x, y, size }); // 선택된 블록 정보 설정
+    setSelected({ x, y });
     setIsDialogOpen(true); // 다이얼로그 열기
   };
 
@@ -205,26 +180,9 @@ export default function Home() {
     handleBlockClick(0, 0);
   };
 
-  // 구매 확인 버튼 클릭 시
-  const handlePurchase = async () => {
-    if (selected) {
-      console.log(`Purchased: (${selected.x}, ${selected.y}), Size: ${selected.size}x${selected.size}, Type: ${purchaseType}, Content: ${contentUrl}`);
-      const newPixel: Pixel = {
-        x: selected.x,
-        y: selected.y,
-        size: selected.size,
-        owner: "User",
-        content: contentUrl,
-        purchaseType,
-      };
-      dispatch({ type: "ADD_PIXEL", pixel: newPixel }); // 새로운 픽셀 추가
-
-      setIsDialogOpen(false); // 다이얼로그 닫기
-      setSelected(null); // 선택된 블록 초기화
-      setContentUrl(""); // 콘텐츠 URL 초기화
-      setSizeInput("10"); // 크기 입력 초기화
-      setSizeError(""); // 에러 메시지 초기화
-    }
+  // 구매 확인 시
+  const handlePurchase = (pixel: Pixel) => {
+    dispatch({ type: "ADD_PIXEL", pixel }); // 새로운 픽셀 추가
   };
 
   // 그리드 업데이트 핸들러
@@ -268,27 +226,6 @@ export default function Home() {
     const blockX = Math.floor(centerX) * BLOCK_SIZE;
     const blockY = Math.floor(centerY) * BLOCK_SIZE;
     setFocusedBlock({ x: blockX, y: blockY }); // 포커스된 블록 위치 업데이트
-  };
-
-  // 크기 입력값 변경 시 검증
-  const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSizeInput(value); // 크기 입력값 업데이트
-    const size = parseInt(value, 10);
-    if (isNaN(size) || size < BLOCK_SIZE || size % BLOCK_SIZE !== 0) {
-      setSizeError("Size must be a multiple of 10 and at least 10 (e.g., 10, 20, 30).");
-    } else {
-      setSizeError("");
-    }
-  };
-
-  // 선택된 크기와 구매 타입에 따른 가격 계산
-  const calculatePrice = () => {
-    if (!selected) return 0;
-    const size = selected.size;
-    const area = size * size; // 면적 계산
-    const basePrice = area; // 1 픽셀 = $1
-    return purchaseType === "basic" ? basePrice : basePrice * 1.5; // Premium은 1.5배
   };
 
   // 로딩 중일 때 표시
@@ -387,85 +324,12 @@ export default function Home() {
         </div>
 
         {/* 픽셀 구매 다이얼로그 */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-semibold text-gray-900">
-                Purchase Pixels
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="text-sm text-gray-600">
-                {/* 선택된 좌표 표시 */}
-                <p>
-                  Selected: ({selected?.x}, {selected?.y})
-                </p>
-                {/* 크기 입력 필드 */}
-                <div className="mt-1">
-                  <label htmlFor="size-input" className="block text-sm font-medium text-gray-700">
-                    Block Size (minimum 10×10, in increments of 10):
-                  </label>
-                  <Input
-                    id="size-input"
-                    type="number"
-                    value={sizeInput}
-                    onChange={handleSizeChange}
-                    className="mt-1 w-full"
-                    min={BLOCK_SIZE}
-                    step={BLOCK_SIZE}
-                  />
-                  {sizeError && <p className="text-red-500 text-sm mt-1">{sizeError}</p>}
-                  {selected && !sizeError && (
-                    <p className="mt-1">
-                      Size: {selected.size}×{selected.size} pixels
-                    </p>
-                  )}
-                </div>
-                {/* 가격 표시 */}
-                {selected && !sizeError && (
-                  <p className="mt-1">
-                    Price: ${calculatePrice()} ({purchaseType})
-                  </p>
-                )}
-              </div>
-              {/* 구매 타입 선택 */}
-              <Select onValueChange={(value) => setPurchaseType(value as "basic" | "premium")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                </SelectContent>
-              </Select>
-              {/* 콘텐츠 URL 입력 */}
-              <Input
-                placeholder="Image/Video URL (optional)"
-                value={contentUrl}
-                onChange={(e) => setContentUrl(e.target.value)}
-                className="w-full"
-              />
-              {/* Premium 타입 안내 */}
-              {purchaseType === "premium" && (
-                <p className="text-sm text-blue-600">
-                  Premium includes GIF/Video support and social media highlights!
-                </p>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handlePurchase}
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={!!sizeError}
-              >
-                Confirm Purchase
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <PurchaseForm
+          selected={selected}
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          onPurchase={handlePurchase}
+        />
       </div>
     </div>
   );
