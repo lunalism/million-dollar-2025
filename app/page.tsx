@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Header from "@/components/main/Header";
 import { Button } from "@/components/ui/button";
-import { Pixel } from "@/lib/types"; // Pixel 타입 임포트 확인
+import { Pixel } from "@/lib/types";
 import PixelGrid from "@/components/main/PixelGrid";
 import PurchaseForm from "@/components/main/PurchaseForm";
 import CoordinateDialog from "@/components/main/CoordinateDialog";
@@ -171,6 +171,7 @@ export default function Home() {
             onClose={() => setIsDialogOpen(false)}
             onPurchase={handlePurchase}
             pixelMap={pixelMap}
+            blockSize={BLOCK_SIZE} // blockSize prop 추가
           />
 
           <PaymentDialog
