@@ -229,9 +229,40 @@ export default function Admin() {
 
   // 픽셀 삭제 핸들러
   const handleDeletePixel = async (x: number, y: number) => {
-    const updatedPixels = pixels.filter((p) => !(p.x === x && p.y === y));
-    await savePixels(updatedPixels);
-    setPixels(updatedPixels);
+    try {
+      // Supabase에서 픽셀 데이터 삭제
+      const { error } = await supabase
+        .from("pixels")
+        .delete()
+        .eq("x", x)
+        .eq("y", y);
+
+      if (error) {
+        console.error("Error deleting pixel from Supabase:", error);
+        throw error;
+      }
+
+      // UI에서 픽셀 데이터 업데이트
+      const updatedPixels = pixels.filter((p) => !(p.x === x && p.y === y));
+      setPixels(updatedPixels);
+      alert("Pixel deleted successfully!");
+
+      // 삭제 후 데이터 리로드 확인
+      const remainingPixels = await getPixels();
+      console.log("Remaining pixels after deletion:", remainingPixels);
+    } catch (error: unknown) {
+      console.error("Failed to delete pixel:", error);
+      if (error && typeof error === "object" && "message" in error) {
+        alert(`Failed to delete pixel: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
+        alert(`Failed to delete pixel: ${error.message}`);
+      } else {
+        alert("Failed to delete pixel: An unexpected error occurred");
+      }
+      // 실패 시 데이터 리로드
+      const pixelData = await getPixels();
+      setPixels(pixelData);
+    }
   };
 
   // About 항목 수정 시작 핸들러
