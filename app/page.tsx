@@ -22,8 +22,8 @@ const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "your-paypal-
 // 홈 페이지 컴포넌트
 export default function Home() {
   const pathname = usePathname();
-  const GRID_WIDTH = 2500;
-  const GRID_HEIGHT = 2000;
+  const GRID_WIDTH = 2000;
+  const GRID_HEIGHT = 1500;
   const BLOCK_SIZE = 10; // 더 이상 사용하지 않지만, 호환성을 위해 유지
 
   const { pixelMap, pixelList, isLoading, addPixel } = usePixelData();
