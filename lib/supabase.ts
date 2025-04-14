@@ -13,7 +13,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // About 항목 타입 정의
 interface AboutItem {
+  id: string;
   category: string;
+  title: string;
   content: string;
 }
 
@@ -31,13 +33,20 @@ export const getAboutContent = async (): Promise<AboutItem[]> => {
 export const updateAboutContent = async (
   oldCategory: string,
   newCategory: string,
+  newTitle: string,
   content: string
 ): Promise<void> => {
   try {
-    // category가 변경되지 않은 경우 content만 업데이트
+    if (!newTitle) {
+      throw new Error("Title cannot be empty");
+    }
+
     const { error } = await supabase
       .from("about")
-      .upsert({ category: newCategory, content }, { onConflict: "category" });
+      .upsert(
+        { category: newCategory, title: newTitle, content },
+        { onConflict: "category" }
+      );
 
     if (error) {
       console.error("Error upserting about content:", error);

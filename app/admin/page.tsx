@@ -52,7 +52,9 @@ interface FAQItem {
 
 // About 항목 타입 정의
 interface AboutItem {
+  id: string;
   category: string;
+  title: string;
   content: string;
 }
 
@@ -68,6 +70,7 @@ export default function Admin() {
   const [editAboutItems, setEditAboutItems] = useState<AboutItem[]>([]);
   const [editAboutItem, setEditAboutItem] = useState<AboutItem | null>(null);
   const [newAboutCategory, setNewAboutCategory] = useState("");
+  const [newAboutTitle, setNewAboutTitle] = useState("");
   const [newAboutContent, setNewAboutContent] = useState("");
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
   const [editFAQItem, setEditFAQItem] = useState<FAQItem | null>(null);
@@ -106,12 +109,8 @@ export default function Admin() {
       console.log("Loaded about content:", contentData);
       console.log("Loaded FAQ items:", faqData);
       setPixels(pixelData);
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
-      console.log("Set editAboutItems:", mappedAboutItems);
+      setEditAboutItems(contentData);
+      console.log("Set editAboutItems:", contentData);
       const mappedFAQItems = faqData.map(item => ({
         id: item.id,
         question: item.question,
@@ -248,22 +247,19 @@ export default function Admin() {
       await updateAboutContent(
         editAboutItem.category,
         editAboutItem.category,
+        editAboutItem.title,
         editAboutItem.content
       );
       setEditAboutItems(
         editAboutItems.map((item) =>
-          item.category === editAboutItem.category ? editAboutItem : item
+          item.id === editAboutItem.id ? editAboutItem : item
         )
       );
       setEditAboutItem(null);
       alert("About item updated!");
       // 데이터 리로드
       const contentData = await getAboutContent();
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
+      setEditAboutItems(contentData);
     } catch (error: unknown) {
       console.error("Failed to update About item:", error);
       if (error && typeof error === "object" && "message" in error) {
@@ -275,11 +271,7 @@ export default function Admin() {
       }
       // 실패 시 데이터 리로드
       const contentData = await getAboutContent();
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
+      setEditAboutItems(contentData);
     }
   };
 
@@ -291,11 +283,7 @@ export default function Admin() {
       alert("About item deleted!");
       // 데이터 리로드
       const contentData = await getAboutContent();
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
+      setEditAboutItems(contentData);
     } catch (error: unknown) {
       if (error && typeof error === "object" && "message" in error) {
         console.error("Failed to delete About item:", error);
@@ -309,34 +297,27 @@ export default function Admin() {
       }
       // 실패 시 데이터 리로드
       const contentData = await getAboutContent();
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
+      setEditAboutItems(contentData);
     }
   };
 
   // About 항목 추가 핸들러
   const handleAddAbout = async () => {
-    if (!newAboutCategory || !newAboutContent) {
-      alert("Please fill in both category and content.");
+    if (!newAboutCategory || !newAboutContent || !newAboutTitle) {
+      alert("Please fill in category, title, and content.");
       return;
     }
     try {
-      await updateAboutContent(newAboutCategory, newAboutCategory, newAboutContent);
-      setEditAboutItems([...editAboutItems, { category: newAboutCategory, content: newAboutContent }]);
+      await updateAboutContent(newAboutCategory, newAboutCategory, newAboutTitle, newAboutContent);
+      setEditAboutItems([...editAboutItems, { id: crypto.randomUUID(), category: newAboutCategory, title: newAboutTitle, content: newAboutContent }]);
       setNewAboutCategory("");
+      setNewAboutTitle("");
       setNewAboutContent("");
       setShowAddAboutForm(false);
       alert("About item added!");
       // 데이터 리로드
       const contentData = await getAboutContent();
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
+      setEditAboutItems(contentData);
     } catch (error: unknown) {
       if (error && typeof error === "object" && "message" in error) {
         console.error("Failed to add About item:", error);
@@ -350,11 +331,7 @@ export default function Admin() {
       }
       // 실패 시 데이터 리로드
       const contentData = await getAboutContent();
-      const mappedAboutItems = contentData.map(item => ({
-        category: item.category,
-        content: item.content
-      }));
-      setEditAboutItems(mappedAboutItems);
+      setEditAboutItems(contentData);
     }
   };
 
@@ -639,9 +616,10 @@ export default function Admin() {
               <div className="space-y-4 mb-8">
                 {editAboutItems.length > 0 ? (
                   editAboutItems.map((item) => (
-                    <div key={item.category} className="p-4 border rounded-lg flex justify-between items-center">
+                    <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-800">{item.category}</h3>
+                        <h3 className="text-lg font-semibold text-gray-800">{item.title}</h3>
+                        <p className="text-gray-600 mt-1">Category: {item.category}</p>
                         <div
                           className="text-gray-600 mt-2"
                           dangerouslySetInnerHTML={{ __html: item.content }}
@@ -678,6 +656,14 @@ export default function Admin() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700">Title</label>
+                    <Input
+                      value={newAboutTitle}
+                      onChange={(e) => setNewAboutTitle(e.target.value)}
+                      placeholder="Enter title"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700">Content</label>
                     <ReactQuill
                       value={newAboutContent}
@@ -706,6 +692,15 @@ export default function Admin() {
                       value={editAboutItem.category}
                       onChange={(e) =>
                         setEditAboutItem({ ...editAboutItem, category: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Title</label>
+                    <Input
+                      value={editAboutItem.title}
+                      onChange={(e) =>
+                        setEditAboutItem({ ...editAboutItem, title: e.target.value })
                       }
                     />
                   </div>
