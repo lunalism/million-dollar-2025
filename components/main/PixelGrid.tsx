@@ -99,11 +99,12 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
               width={pixel.width}
               height={pixel.height}
               style={{ objectFit: "cover" }}
-              unoptimized={false} // 최적화 활성화 (remotePatterns 설정 후 필요 없으면 제거 가능)
+              unoptimized // 이미지 최적화 비활성화
               onError={(e) => {
                 console.error(`Failed to load image at (${pixel.x}, ${pixel.y}): ${pixel.content}`);
                 e.currentTarget.src = "/placeholder.png";
               }}
+              onLoad={() => console.log(`Successfully loaded image at (${pixel.x}, ${pixel.y}): ${pixel.content}`)} // 디버깅 로그 추가
             />
           ) : (
             <div
