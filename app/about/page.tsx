@@ -17,12 +17,16 @@ interface FAQItem {
   content: string;
 }
 
+// About 항목 타입 정의
+interface AboutItem {
+  category: string;
+  content: string;
+}
+
 // About 페이지 컴포넌트
 export default function About() {
   const pathname = usePathname();
-  const [contentItems, setContentItems] = useState<
-    { category: string; title: string; content: string }[]
-  >([]);
+  const [contentItems, setContentItems] = useState<AboutItem[]>([]);
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -100,7 +104,7 @@ export default function About() {
                         {selectedCategory === item.category && (
                           <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
                         )}
-                        {item.title}
+                        {item.category} {/* title 대신 category 사용 */}
                       </Button>
                     ))}
                     <Button
@@ -138,9 +142,23 @@ export default function About() {
                 {selectedCategory === item.category && (
                   <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
                 )}
-                {item.title}
+                {item.category} {/* title 대신 category 사용 */}
               </Button>
             ))}
+            <Button
+              variant="ghost"
+              className={`w-full text-left justify-start relative transition-all duration-300 ${
+                selectedCategory === "FAQ"
+                  ? "text-[#0F4C81] font-semibold bg-[#0F4C81]/10"
+                  : "text-gray-600 hover:text-[#0F4C81] hover:bg-[#0F4C81]/5"
+              }`}
+              onClick={() => setSelectedCategory("FAQ")}
+            >
+              {selectedCategory === "FAQ" && (
+                <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
+              )}
+              FAQ
+            </Button>
           </div>
         </div>
 
@@ -151,7 +169,7 @@ export default function About() {
             key={selectedCategory}
           >
             <h2 className="text-3xl font-semibold text-[#0F4C81] mb-4">
-              {selectedCategory === "FAQ" ? "FAQ" : selectedContent?.title || "Select a category"}
+              {selectedCategory === "FAQ" ? "FAQ" : selectedContent?.category || "Select a category"}
             </h2>
             {selectedCategory === "FAQ" ? (
               <div className="space-y-4">
