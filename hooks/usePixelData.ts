@@ -54,6 +54,7 @@ const pixelReducer = (state: PixelState, action: PixelAction): PixelState => {
         const key = `${pixel.x}-${pixel.y}`;
         newPixelMap[key] = pixel;
       });
+      console.log("SET_PIXELS: Updated pixelMap:", newPixelMap); // 디버깅 로그
       return { pixelMap: newPixelMap, pixelList: action.pixels, changedPixels: [] };
     }
     case "ADD_PIXEL": {
@@ -61,7 +62,8 @@ const pixelReducer = (state: PixelState, action: PixelAction): PixelState => {
       const newPixelMap = { ...state.pixelMap, [key]: action.pixel };
       const newPixelList = [...state.pixelList, action.pixel];
       const newChangedPixels = [...state.changedPixels, action.pixel];
-      console.log("Added pixel to state:", action.pixel); // 디버깅 로그 추가
+      console.log("ADD_PIXEL: Added pixel:", action.pixel); // 디버깅 로그
+      console.log("ADD_PIXEL: Updated pixelMap:", newPixelMap); // 디버깅 로그
       return { pixelMap: newPixelMap, pixelList: newPixelList, changedPixels: newChangedPixels };
     }
     default:
@@ -77,6 +79,7 @@ export const usePixelData = () => {
     const loadPixels = async () => {
       setIsLoading(true);
       try {
+        // Supabase에서 픽셀 데이터 로드
         const { data: pixelsData, error: fetchError } = await supabase.from("pixels").select("*");
 
         if (fetchError) {
@@ -87,9 +90,11 @@ export const usePixelData = () => {
         console.log("Loaded pixels from Supabase:", pixels); // 디버깅 로그 추가
         dispatch({ type: "SET_PIXELS", pixels });
 
+        // localStorage에 저장 (캐싱)
         localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
       } catch (error) {
         console.error("Failed to load pixels from Supabase:", error);
+        // Supabase에서 로드 실패 시 localStorage에서 시도
         try {
           const cachedPixels: string | null = localStorage.getItem("purchasedPixels");
           let pixels: Pixel[] = [];
@@ -217,7 +222,14 @@ export const usePixelData = () => {
         throw insertError;
       }
 
-      dispatch({ type: "ADD_PIXEL", pixel });
+      // 데이터 추가 후 최신 데이터 가져오기
+      const { data: updatedPixels, error: fetchUpdatedError } = await supabase.from("pixels").select("*");
+      if (fetchUpdatedError) {
+        throw fetchUpdatedError;
+      }
+
+      console.log("Fetched updated pixels after add:", updatedPixels); // 디버깅 로그
+      dispatch({ type: "SET_PIXELS", pixels: updatedPixels as Pixel[] });
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error("Failed to add pixel: " + error.message);

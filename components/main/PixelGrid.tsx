@@ -59,7 +59,7 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
     }
 
     onGridUpdate();
-  }, [pixelMap, selected, gridWidth, gridHeight, onGridUpdate]); // pixelMap 추가
+  }, [selected, gridWidth, gridHeight, onGridUpdate]); // pixelMap 제거
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -89,16 +89,28 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
             top: `${pixel.y}px`,
             width: `${pixel.width}px`,
             height: `${pixel.height}px`,
+            zIndex: 10, // 캔버스 위에 표시되도록 z-index 설정
           }}
         >
-          {pixel.content && (
+          {pixel.content ? (
             <Image
               src={pixel.content}
               alt={`Pixel at (${pixel.x}, ${pixel.y})`}
               width={pixel.width}
               height={pixel.height}
               style={{ objectFit: "cover" }}
-              onError={() => console.error(`Failed to load image at (${pixel.x}, ${pixel.y}): ${pixel.content}`)} // 디버깅 로그 추가
+              onError={(e) => {
+                console.error(`Failed to load image at (${pixel.x}, ${pixel.y}): ${pixel.content}`);
+                e.currentTarget.src = "/placeholder.png"; // 대체 이미지
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                backgroundColor: pixel.purchaseType === "premium" ? "#FFD700" : "#87CEEB",
+              }}
             />
           )}
           <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap z-20">
