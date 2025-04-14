@@ -457,17 +457,19 @@ export default function Admin() {
                   <Table className="w-full">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-1/5">Position</TableHead>
-                        <TableHead className="w-1/5">Owner</TableHead>
-                        <TableHead className="w-2/5">Content</TableHead>
-                        <TableHead className="w-1/5">Type</TableHead>
-                        <TableHead className="w-1/5">Actions</TableHead>
+                        <TableHead className="w-1/6">Position</TableHead>
+                        <TableHead className="w-1/6">Size</TableHead> {/* 새로운 열 추가 */}
+                        <TableHead className="w-1/6">Owner</TableHead>
+                        <TableHead className="w-2/6">Content</TableHead>
+                        <TableHead className="w-1/6">Type</TableHead>
+                        <TableHead className="w-1/6">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pixels.map((pixel) => (
                         <TableRow key={`${pixel.x}-${pixel.y}`}>
                           <TableCell>({pixel.x}, {pixel.y})</TableCell>
+                          <TableCell>{pixel.width}×{pixel.height}</TableCell> {/* 크기 표시 */}
                           <TableCell>{pixel.owner}</TableCell>
                           <TableCell>{pixel.content || "N/A"}</TableCell>
                           <TableCell>{pixel.purchaseType}</TableCell>
@@ -500,7 +502,7 @@ export default function Admin() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Content URL</label>
                       <Input
-                        value={editPixel.content ?? ""} // null일 경우 빈 문자열로 대체
+                        value={editPixel.content ?? ""}
                         onChange={(e) => setEditPixel({ ...editPixel, content: e.target.value })}
                       />
                     </div>

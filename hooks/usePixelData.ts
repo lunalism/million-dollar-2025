@@ -61,6 +61,7 @@ const pixelReducer = (state: PixelState, action: PixelAction): PixelState => {
       const newPixelMap = { ...state.pixelMap, [key]: action.pixel };
       const newPixelList = [...state.pixelList, action.pixel];
       const newChangedPixels = [...state.changedPixels, action.pixel];
+      console.log("Added pixel to state:", action.pixel); // 디버깅 로그 추가
       return { pixelMap: newPixelMap, pixelList: newPixelList, changedPixels: newChangedPixels };
     }
     default:
@@ -76,7 +77,6 @@ export const usePixelData = () => {
     const loadPixels = async () => {
       setIsLoading(true);
       try {
-        // Supabase에서 픽셀 데이터 로드
         const { data: pixelsData, error: fetchError } = await supabase.from("pixels").select("*");
 
         if (fetchError) {
@@ -84,13 +84,12 @@ export const usePixelData = () => {
         }
 
         const pixels = pixelsData as Pixel[];
+        console.log("Loaded pixels from Supabase:", pixels); // 디버깅 로그 추가
         dispatch({ type: "SET_PIXELS", pixels });
 
-        // localStorage에 저장 (캐싱)
         localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
       } catch (error) {
         console.error("Failed to load pixels from Supabase:", error);
-        // Supabase에서 로드 실패 시 localStorage에서 시도
         try {
           const cachedPixels: string | null = localStorage.getItem("purchasedPixels");
           let pixels: Pixel[] = [];
@@ -107,6 +106,7 @@ export const usePixelData = () => {
             pixels = await getPixels();
             localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
           }
+          console.log("Loaded pixels from cache/API:", pixels); // 디버깅 로그 추가
           dispatch({ type: "SET_PIXELS", pixels });
         } catch (apiError) {
           console.error("Failed to load pixels from API:", apiError);
@@ -162,7 +162,6 @@ export const usePixelData = () => {
 
   const addPixel = async (pixel: Pixel) => {
     try {
-      // 중복 구매 방지: Supabase에서 해당 좌표 확인
       const { data: existingPixel, error: fetchError } = await supabase
         .from("pixels")
         .select("*")
@@ -178,7 +177,6 @@ export const usePixelData = () => {
         throw new Error("This pixel has already been purchased.");
       }
 
-      // 중복 구매 방지: 선택한 영역에 겹치는 픽셀이 있는지 확인
       const newLeft = pixel.x;
       const newRight = pixel.x + pixel.width;
       const newTop = pixel.y;
@@ -201,7 +199,6 @@ export const usePixelData = () => {
         }
       }
 
-      // Supabase에 픽셀 저장
       const { error: insertError } = await supabase
         .from("pixels")
         .insert({
@@ -220,7 +217,6 @@ export const usePixelData = () => {
         throw insertError;
       }
 
-      // 상태 업데이트
       dispatch({ type: "ADD_PIXEL", pixel });
     } catch (error: unknown) {
       if (error instanceof Error) {
