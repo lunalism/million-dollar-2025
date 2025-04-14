@@ -74,6 +74,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState("Manage Pixels");
   const [showAddAboutForm, setShowAddAboutForm] = useState(false); // About 추가 폼 표시 상태
   const [showAddFAQForm, setShowAddFAQForm] = useState(false); // FAQ 추가 폼 표시 상태
+  const [loadError, setLoadError] = useState<string | null>(null); // 데이터 로드 에러 메시지
 
   // 디바운싱된 상태 업데이트 함수
   const debouncedSetNewAboutContent = debounce((value: string) => {
@@ -116,15 +117,23 @@ export default function Admin() {
     };
 
     const loadData = async () => {
-      const pixelData: Pixel[] = await getPixels();
-      const contentData = await getAboutContent();
-      const faqData = await getFAQItems();
-      console.log("Loaded pixels:", pixelData);
-      console.log("Loaded about content:", contentData);
-      console.log("Loaded FAQ items:", faqData);
-      setPixels(pixelData);
-      setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
-      setFaqItems(faqData.map(item => ({ id: item.id, question: item.question, content: item.content })));
+      try {
+        const pixelData: Pixel[] = await getPixels();
+        const contentData = await getAboutContent();
+        const faqData = await getFAQItems();
+        console.log("Loaded pixels:", pixelData);
+        console.log("Loaded about content:", contentData);
+        console.log("Loaded FAQ items:", faqData);
+        setPixels(pixelData);
+        setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
+        setFaqItems(faqData.map(item => ({ id: item.id, question: item.question, content: item.content })));
+        if (contentData.length === 0 && faqData.length === 0) {
+          setLoadError("No data found in About or FAQ tables.");
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        setLoadError("Failed to load data: " + (error || "Unknown error"));
+      }
     };
 
     checkSession();
@@ -202,12 +211,11 @@ export default function Admin() {
   // About 내용 저장 핸들러
   const handleSaveAbout = async () => {
     try {
-      console.log("Saving About items:", editAboutItems); // 디버깅 로그 추가
+      console.log("Saving About items:", editAboutItems);
       for (const item of editAboutItems) {
         await updateAboutContent(item.category, item.category, item.content);
       }
       alert("About content updated!");
-      // 데이터 저장 후 최신 데이터 로드
       const contentData = await getAboutContent();
       setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
     } catch (error) {
@@ -227,7 +235,7 @@ export default function Admin() {
       setEditAboutItems([...editAboutItems, { category: newAboutCategory, content: newAboutContent }]);
       setNewAboutCategory("");
       setNewAboutContent("");
-      setShowAddAboutForm(false); // 폼 닫기
+      setShowAddAboutForm(false);
       alert("About item added!");
     } catch (error) {
       console.error("Failed to add about item:", error);
@@ -246,7 +254,7 @@ export default function Admin() {
       setFaqItems([...faqItems, newItem[0]]);
       setNewFAQQuestion("");
       setNewFAQAnswer("");
-      setShowAddFAQForm(false); // 폼 닫기
+      setShowAddFAQForm(false);
       alert("FAQ item added!");
     } catch (error) {
       console.error("Failed to add FAQ item:", error);
@@ -263,11 +271,11 @@ export default function Admin() {
   const handleSaveFAQ = async () => {
     if (!editFAQItem) return;
     try {
-      console.log("Saving FAQ item:", editFAQItem); // 디버깅 로그 추가
+      console.log("Saving FAQ item:", editFAQItem);
       const updatedItem = await upsertFAQItem(
         editFAQItem.id,
         editFAQItem.question,
-        editFAQItem.content // answer 대신 content 사용
+        editFAQItem.content
       );
       setFaqItems(
         faqItems.map((item) => (item.id === updatedItem[0].id ? updatedItem[0] : item))
@@ -343,6 +351,12 @@ export default function Admin() {
             </Button>
           ))}
         </div>
+
+        {loadError && (
+          <div className="mb-4 p-4 border rounded-lg bg-red-50 text-red-600">
+            {loadError}
+          </div>
+        )}
 
         <div className="w-full">
           {activeTab === "Manage Pixels" && (
@@ -568,7 +582,7 @@ export default function Admin() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Answer</label>
                     <ReactQuill
-                      value={editFAQItem.content} // answer 대신 content 사용
+                      value={editFAQItem.content}
                       onChange={(value) => debouncedSetEditFAQItem({ ...editFAQItem, content: value })}
                       modules={quillModules}
                       className="bg-white"
