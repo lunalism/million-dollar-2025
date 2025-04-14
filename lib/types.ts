@@ -7,7 +7,7 @@ export type Pixel = {
     width: number;
     height: number;
     owner: string;
-    content: string;
+    content: string | null;
     purchaseType: "basic" | "premium";
     content_width?: number; // 이미지 너비 (픽셀 단위)
     content_height?: number; // 이미지 높이 (픽셀 단위)

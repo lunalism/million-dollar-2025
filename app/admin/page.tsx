@@ -66,7 +66,7 @@ export default function Admin() {
   const [pixels, setPixels] = useState<Pixel[]>([]);
   const [editPixel, setEditPixel] = useState<Pixel | null>(null);
   const [editAboutItems, setEditAboutItems] = useState<AboutItem[]>([]);
-  const [editAboutItem, setEditAboutItem] = useState<AboutItem | null>(null); // 수정 중인 About 항목
+  const [editAboutItem, setEditAboutItem] = useState<AboutItem | null>(null);
   const [newAboutCategory, setNewAboutCategory] = useState("");
   const [newAboutContent, setNewAboutContent] = useState("");
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
@@ -246,8 +246,8 @@ export default function Admin() {
     try {
       console.log("Saving About item:", editAboutItem);
       await updateAboutContent(
-        editAboutItem.category, // 기존 카테고리
-        editAboutItem.category, // 새로운 카테고리 (변경 가능)
+        editAboutItem.category,
+        editAboutItem.category,
         editAboutItem.content
       );
       setEditAboutItems(
@@ -500,7 +500,7 @@ export default function Admin() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Content URL</label>
                       <Input
-                        value={editPixel.content}
+                        value={editPixel.content ?? ""} // null일 경우 빈 문자열로 대체
                         onChange={(e) => setEditPixel({ ...editPixel, content: e.target.value })}
                       />
                     </div>

@@ -11,44 +11,39 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pixel, PixelMap } from "@/lib/types";
+import { Pixel } from "@/lib/types";
 import { getImageSize } from "@/utils/getImageSize";
 import { uploadFile } from "@/lib/api";
 
 // 픽셀 구매 폼의 props 타입 정의
 interface PurchaseFormProps {
-  selected: { x: number; y: number } | null; // 선택된 좌표
-  isOpen: boolean; // 다이얼로그 열림/닫힘 상태
-  onClose: () => void; // 다이얼로그 닫기 핸들러
-  onPurchase: (pixel: Pixel, amount: number) => void; // 구매 완료 핸들러
-  pixelMap: PixelMap; // 기존 픽셀 맵 (겹침 확인용)
-  blockSize: number; // 블록 크기 (사용하지 않음, 호환성을 위해 유지)
+  selected: { x: number; y: number } | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onPurchase: (pixel: Pixel, amount: number) => void;
+  blockSize: number;
 }
 
 // 픽셀 구매 폼 컴포넌트
-export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pixelMap }: PurchaseFormProps) {
-  // 상태 정의
-  const [width, setWidth] = useState<string>("100"); // 픽셀 단위의 너비
-  const [height, setHeight] = useState<string>("100"); // 픽셀 단위의 높이
-  const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic"); // 구매 유형 (basic/premium)
-  const [contentType, setContentType] = useState<"url" | "file">("url"); // 콘텐츠 입력 방식 (URL/파일 업로드)
-  const [contentUrl, setContentUrl] = useState(""); // URL 입력값
-  const [contentFile, setContentFile] = useState<File | null>(null); // 업로드할 파일
-  const [contentPreview, setContentPreview] = useState<string | null>(null); // 파일 미리보기 URL
-  const [ownerName, setOwnerName] = useState(""); // 구매자 이름/닉네임
-  const [error, setError] = useState(""); // 에러 메시지
-  const [isLoading, setIsLoading] = useState(false); // 업로드/처리 중 로딩 상태
+export default function PurchaseForm({ selected, isOpen, onClose, onPurchase }: PurchaseFormProps) {
+  const [width, setWidth] = useState<string>("100");
+  const [height, setHeight] = useState<string>("100");
+  const [purchaseType, setPurchaseType] = useState<"basic" | "premium">("basic");
+  const [contentType, setContentType] = useState<"url" | "file">("url");
+  const [contentUrl, setContentUrl] = useState("");
+  const [contentFile, setContentFile] = useState<File | null>(null);
+  const [contentPreview, setContentPreview] = useState<string | null>(null);
+  const [ownerName, setOwnerName] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 파일 선택 시 미리보기 생성 및 크기 계산
   useEffect(() => {
     if (contentFile) {
       const previewUrl = URL.createObjectURL(contentFile);
       setContentPreview(previewUrl);
 
-      // 이미지 크기 계산
       getImageSize(contentFile)
         .then((size) => {
-          // 이미지 크기를 픽셀 단위로 설정
           setWidth(size.width.toString());
           setHeight(size.height.toString());
           setError("");
@@ -63,12 +58,10 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
     }
   }, [contentFile]);
 
-  // URL 입력 시 크기 계산
   useEffect(() => {
     if (contentType === "url" && contentUrl) {
       getImageSize(contentUrl)
         .then((size) => {
-          // 이미지 크기를 픽셀 단위로 설정
           setWidth(size.width.toString());
           setHeight(size.height.toString());
           setError("");
@@ -79,50 +72,19 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
     }
   }, [contentType, contentUrl]);
 
-  // 구매 가격 계산 함수
   const calculatePrice = () => {
     if (!selected) return 0;
     const widthNum = parseInt(width, 10);
     const heightNum = parseInt(height, 10);
     if (isNaN(widthNum) || isNaN(heightNum)) return 0;
-    // 픽셀 단위로 면적 계산
-    const area = widthNum * heightNum; // 실제 픽셀 면적
-    const basePrice = area * 0.01; // 1 픽셀 = $0.01 (100x100 = 100달러)
-    return purchaseType === "basic" ? basePrice : basePrice * 1.5; // Premium은 1.5배
+    const area = widthNum * heightNum;
+    const basePrice = area * 0.01;
+    return purchaseType === "basic" ? basePrice : basePrice * 1.5;
   };
 
-  // 새로운 픽셀 블록이 기존 블록과 겹치는지 확인하는 함수
-  const checkOverlap = (newPixel: { x: number; y: number; width: number; height: number }) => {
-    const newLeft = newPixel.x;
-    const newRight = newPixel.x + newPixel.width;
-    const newTop = newPixel.y;
-    const newBottom = newPixel.y + newPixel.height;
-
-    for (const existingPixel of Object.values(pixelMap)) {
-      const existingLeft = existingPixel.x;
-      const existingRight = existingPixel.x + existingPixel.width;
-      const existingTop = existingPixel.y;
-      const existingBottom = existingPixel.y + existingPixel.height;
-
-      const overlaps =
-        newLeft < existingRight &&
-        newRight > existingLeft &&
-        newTop < existingBottom &&
-        newBottom > existingTop;
-
-      if (overlaps) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  // 구매 처리 함수
   const handlePurchase = async () => {
     if (!selected) return;
 
-    // 입력값 검증: 너비와 높이
     const widthNum = parseInt(width, 10);
     const heightNum = parseInt(height, 10);
 
@@ -131,35 +93,19 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       return;
     }
 
-    // 최소 크기 및 10의 배수 검증 제거 (픽셀 단위로 변경됨)
     if (widthNum < 10 || heightNum < 10) {
       setError("Width and Height must be at least 10 pixels.");
       return;
     }
 
-    // 입력값 검증: 이름/닉네임
     if (!ownerName.trim()) {
       setError("Please enter your name or nickname.");
       return;
     }
 
-    // 겹침 확인 (픽셀 단위로 직접 계산)
-    const newPixel = {
-      x: selected.x,
-      y: selected.y,
-      width: widthNum,
-      height: heightNum,
-    };
-
-    if (checkOverlap(newPixel)) {
-      setError("Selected area overlaps with an existing pixel block. Please choose a different location or size.");
-      return;
-    }
-
-    // 콘텐츠 처리 (URL 또는 파일 업로드)
     setIsLoading(true);
     try {
-      let finalContentUrl = "";
+      let finalContentUrl: string | null = null;
       let contentWidth = 0;
       let contentHeight = 0;
 
@@ -171,23 +117,18 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
       } else if (contentType === "file" && contentFile) {
         try {
           finalContentUrl = await uploadFile(contentFile);
-        } catch (err) {
-          // 업로드 실패 시 에러 로깅 및 메시지 설정
-          console.error("Upload error:", err);
-          throw new Error(`Failed to upload file to Supabase Storage`);
+        } catch (err: unknown) {
+          throw new Error(`Failed to upload file: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
         try {
           const size = await getImageSize(contentFile);
           contentWidth = size.width;
           contentHeight = size.height;
-        } catch (err) {
-          // 이미지 크기 계산 실패 시 에러 로깅 및 메시지 설정
-          console.error("Image size calculation error:", err);
-          throw new Error(`Failed to calculate image size`);
+        } catch (err: unknown) {
+          throw new Error(`Failed to calculate image size: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
       }
 
-      // 새로운 픽셀 객체 생성 (width와 height는 픽셀 단위로 저장)
       const pixel: Pixel = {
         x: selected.x,
         y: selected.y,
@@ -202,16 +143,19 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
 
       const amount = calculatePrice();
       onPurchase(pixel, amount);
-    } catch (err) {
-      // 에러 로깅 및 사용자에게 구체적인 에러 메시지 표시
-      console.error("Purchase error:", err);
-      setError("Failed to process content. Please try again.");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Purchase error:", err);
+        setError(`Failed to process content: ${err.message}`);
+      } else {
+        console.error("Unknown error:", err);
+        setError("Failed to process content: Unknown error");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 다이얼로그 닫기 및 상태 초기화 함수
   const handleClose = () => {
     setWidth("100");
     setHeight("100");
@@ -225,7 +169,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
     onClose();
   };
 
-  // UI 렌더링
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px] rounded-lg shadow-xl">
@@ -235,7 +178,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {/* 선택된 좌표 및 크기 입력 */}
           <div className="text-sm text-gray-600">
             <p>
               Selected: ({selected?.x}, {selected?.y})
@@ -279,7 +221,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
             )}
           </div>
 
-          {/* 이름/닉네임 입력 */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Name/Nickname</label>
             <Input
@@ -293,7 +234,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
             />
           </div>
 
-          {/* 구매 유형 선택 (Basic/Premium) */}
           <Select onValueChange={(value) => setPurchaseType(value as "basic" | "premium")}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select type" />
@@ -304,7 +244,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
             </SelectContent>
           </Select>
 
-          {/* 콘텐츠 입력 방식 선택 (URL/파일 업로드) */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Content Type</label>
             <div className="mt-1 flex space-x-4">
@@ -331,7 +270,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
             </div>
           </div>
 
-          {/* 콘텐츠 입력 UI */}
           {contentType === "url" ? (
             <Input
               placeholder="Image/Video URL (optional)"
@@ -341,6 +279,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
                 setError("");
               }}
               className="w-full"
+              disabled={isLoading}
             />
           ) : (
             <div>
@@ -353,6 +292,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
                   setError("");
                 }}
                 className="w-full"
+                disabled={isLoading}
               />
               {contentFile && (
                 <div className="mt-2">
@@ -373,6 +313,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
                     size="sm"
                     onClick={() => setContentFile(null)}
                     className="mt-2"
+                    disabled={isLoading}
                   >
                     Remove File
                   </Button>
@@ -382,7 +323,6 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
             </div>
           )}
 
-          {/* Premium 유형 안내 메시지 */}
           {purchaseType === "premium" && (
             <p className="text-sm text-blue-600">
               Premium includes GIF/Video support and social media highlights!
@@ -390,7 +330,7 @@ export default function PurchaseForm({ selected, isOpen, onClose, onPurchase, pi
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
           <Button

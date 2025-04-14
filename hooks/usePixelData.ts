@@ -2,6 +2,7 @@
 import { useState, useEffect, useReducer } from "react";
 import { getPixels, savePixels } from "@/lib/api";
 import { Pixel, PixelMap } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 import debounce from "lodash/debounce";
 
 // useReducer의 상태와 액션 타입 정의
@@ -33,7 +34,7 @@ const isPixel = (data: unknown): data is Pixel => {
     "owner" in pixel &&
     typeof pixel.owner === "string" &&
     "content" in pixel &&
-    typeof pixel.content === "string" &&
+    (typeof pixel.content === "string" || pixel.content === null) &&
     "purchaseType" in pixel &&
     (pixel.purchaseType === "basic" || pixel.purchaseType === "premium")
   );
@@ -75,25 +76,42 @@ export const usePixelData = () => {
     const loadPixels = async () => {
       setIsLoading(true);
       try {
-        const cachedPixels: string | null = localStorage.getItem("purchasedPixels");
-        let pixels: Pixel[] = [];
-        if (cachedPixels) {
-          const parsedPixels: unknown = JSON.parse(cachedPixels);
-          if (isPixelArray(parsedPixels)) {
-            pixels = parsedPixels;
+        // Supabase에서 픽셀 데이터 로드
+        const { data: pixelsData, error: fetchError } = await supabase.from("pixels").select("*");
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        const pixels = pixelsData as Pixel[];
+        dispatch({ type: "SET_PIXELS", pixels });
+
+        // localStorage에 저장 (캐싱)
+        localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
+      } catch (error) {
+        console.error("Failed to load pixels from Supabase:", error);
+        // Supabase에서 로드 실패 시 localStorage에서 시도
+        try {
+          const cachedPixels: string | null = localStorage.getItem("purchasedPixels");
+          let pixels: Pixel[] = [];
+          if (cachedPixels) {
+            const parsedPixels: unknown = JSON.parse(cachedPixels);
+            if (isPixelArray(parsedPixels)) {
+              pixels = parsedPixels;
+            } else {
+              console.warn("Invalid pixel data in localStorage, resetting to empty array.");
+              pixels = [];
+              localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
+            }
           } else {
-            console.warn("Invalid pixel data in localStorage, resetting to empty array.");
-            pixels = [];
+            pixels = await getPixels();
             localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
           }
-        } else {
-          pixels = await getPixels();
-          localStorage.setItem("purchasedPixels", JSON.stringify(pixels));
+          dispatch({ type: "SET_PIXELS", pixels });
+        } catch (apiError) {
+          console.error("Failed to load pixels from API:", apiError);
+          dispatch({ type: "SET_PIXELS", pixels: [] });
         }
-        dispatch({ type: "SET_PIXELS", pixels });
-      } catch (error) {
-        console.error("Failed to load pixels:", error);
-        dispatch({ type: "SET_PIXELS", pixels: [] });
       } finally {
         setIsLoading(false);
       }
@@ -108,7 +126,11 @@ export const usePixelData = () => {
 
     const saveToApi = debounce(async (changedPixels: Pixel[]) => {
       if (changedPixels.length > 0) {
-        await savePixels(changedPixels);
+        try {
+          await savePixels(changedPixels);
+        } catch (error) {
+          console.error("Failed to save pixels:", error);
+        }
       }
     }, 1000);
 
@@ -138,8 +160,75 @@ export const usePixelData = () => {
     };
   }, [state.pixelList]);
 
-  const addPixel = (pixel: Pixel) => {
-    dispatch({ type: "ADD_PIXEL", pixel });
+  const addPixel = async (pixel: Pixel) => {
+    try {
+      // 중복 구매 방지: Supabase에서 해당 좌표 확인
+      const { data: existingPixel, error: fetchError } = await supabase
+        .from("pixels")
+        .select("*")
+        .eq("x", pixel.x)
+        .eq("y", pixel.y)
+        .single();
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        throw fetchError;
+      }
+
+      if (existingPixel) {
+        throw new Error("This pixel has already been purchased.");
+      }
+
+      // 중복 구매 방지: 선택한 영역에 겹치는 픽셀이 있는지 확인
+      const newLeft = pixel.x;
+      const newRight = pixel.x + pixel.width;
+      const newTop = pixel.y;
+      const newBottom = pixel.y + pixel.height;
+
+      for (const existingPixel of state.pixelList) {
+        const existingLeft = existingPixel.x;
+        const existingRight = existingPixel.x + existingPixel.width;
+        const existingTop = existingPixel.y;
+        const existingBottom = existingPixel.y + existingPixel.height;
+
+        const overlaps =
+          newLeft < existingRight &&
+          newRight > existingLeft &&
+          newTop < existingBottom &&
+          newBottom > existingTop;
+
+        if (overlaps) {
+          throw new Error("Selected area overlaps with an existing pixel block.");
+        }
+      }
+
+      // Supabase에 픽셀 저장
+      const { error: insertError } = await supabase
+        .from("pixels")
+        .insert({
+          x: pixel.x,
+          y: pixel.y,
+          width: pixel.width,
+          height: pixel.height,
+          owner: pixel.owner,
+          content: pixel.content,
+          purchase_type: pixel.purchaseType,
+          content_width: pixel.content_width,
+          content_height: pixel.content_height,
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      // 상태 업데이트
+      dispatch({ type: "ADD_PIXEL", pixel });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error("Failed to add pixel: " + error.message);
+      } else {
+        throw new Error("Failed to add pixel: Unknown error");
+      }
+    }
   };
 
   return {
