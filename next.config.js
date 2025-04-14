@@ -9,6 +9,11 @@ const nextConfig = {
         port: "", // 포트가 없으면 빈 문자열
         pathname: "/**", // 모든 경로 허용
       },
+      {
+        protocol: "https",
+        hostname: "nqdfayvyswymnyvbe.supabase.co",
+        pathname: "/storage/v1/object/public/pixel-content/**",
+      },
     ],
   },
 };
