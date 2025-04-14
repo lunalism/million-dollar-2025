@@ -59,7 +59,7 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
     }
 
     onGridUpdate();
-  }, [selected, gridWidth, gridHeight, onGridUpdate]); // pixelMap 제거
+  }, [selected, gridWidth, gridHeight, onGridUpdate]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -89,7 +89,7 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
             top: `${pixel.y}px`,
             width: `${pixel.width}px`,
             height: `${pixel.height}px`,
-            zIndex: 10, // 캔버스 위에 표시되도록 z-index 설정
+            zIndex: 10,
           }}
         >
           {pixel.content ? (
@@ -99,9 +99,10 @@ export default function PixelGrid({ pixelMap, selected, onBlockClick, onGridUpda
               width={pixel.width}
               height={pixel.height}
               style={{ objectFit: "cover" }}
+              unoptimized={false} // 최적화 활성화 (remotePatterns 설정 후 필요 없으면 제거 가능)
               onError={(e) => {
                 console.error(`Failed to load image at (${pixel.x}, ${pixel.y}): ${pixel.content}`);
-                e.currentTarget.src = "/placeholder.png"; // 대체 이미지
+                e.currentTarget.src = "/placeholder.png";
               }}
             />
           ) : (

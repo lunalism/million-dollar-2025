@@ -1,21 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "example.com",
-        port: "", // 포트가 없으면 빈 문자열
-        pathname: "/**", // 모든 경로 허용
-      },
-      {
-        protocol: "https",
-        hostname: "nqdfayvyswymnyvbe.supabase.co",
+        hostname: "nnqdfayvqsyymanynvbe.supabase.co",
         pathname: "/storage/v1/object/public/pixel-content/**",
       },
     ],
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
