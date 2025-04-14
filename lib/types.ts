@@ -28,13 +28,6 @@ export type GridPixel = {
     purchaseType?: "basic" | "premium"; // 구매 타입: Basic 또는 Premium (구매된 경우)
 };
 
-// About 페이지의 콘텐츠를 나타내는 타입
-export type AboutContent = {
-    whyStarted: string; // "Why We Started This" 섹션의 내용
-    vision: string; // "Our Vision" 섹션의 내용
-    howHelp: string; // "How You Can Help" 섹션의 내용
-};
-
 // FAQ 항목을 나타내는 타입
 export type FAQItem = {
     question: string; // FAQ 질문
@@ -43,6 +36,5 @@ export type FAQItem = {
 
 // Contact 페이지의 콘텐츠를 나타내는 타입
 export type Content = {
-    about: AboutContent; // About 페이지 콘텐츠
     faq: FAQItem[]; // FAQ 항목 리스트
 };
