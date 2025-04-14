@@ -27,7 +27,7 @@ import { toast } from "sonner"; // sonner로 메시지 표시
 // FAQ 항목 타입 정의 (faq 테이블 구조에 맞춤)
 interface FAQItem {
   id: number;
-  title: string;
+  question: string;
   content: string;
 }
 
@@ -223,7 +223,7 @@ export default function Contact() {
             <Accordion type="single" collapsible className="w-full">
               {faqItems.map((item) => (
                 <AccordionItem key={item.id} value={`item-${item.id}`}>
-                  <AccordionTrigger>{item.title}</AccordionTrigger>
+                  <AccordionTrigger>{item.question}</AccordionTrigger>
                   <AccordionContent>
                     <div dangerouslySetInnerHTML={{ __html: item.content }} />
                   </AccordionContent>
