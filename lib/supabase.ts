@@ -1,5 +1,6 @@
 // lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
+import { Pixel } from "./types";
 
 // Supabase 클라이언트 생성
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -18,6 +19,25 @@ interface AboutItem {
   title: string;
   content: string;
 }
+
+// 픽셀 데이터를 가져오는 함수
+export const getPixels = async (): Promise<Pixel[]> => {
+  const { data, error } = await supabase.from("pixels").select("*");
+  if (error) {
+    console.error("Error fetching pixels:", error);
+    return [];
+  }
+  return data || [];
+};
+
+// 픽셀 데이터를 저장하는 함수
+export const savePixels = async (pixels: Pixel[]): Promise<void> => {
+  const { error } = await supabase.from("pixels").upsert(pixels);
+  if (error) {
+    console.error("Error saving pixels:", error);
+    throw error;
+  }
+};
 
 // About 데이터 가져오기 함수입니다.
 export const getAboutContent = async (): Promise<AboutItem[]> => {

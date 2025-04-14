@@ -1,127 +1,72 @@
 // app/admin/page.tsx
 "use client";
 
+// React와 상태 관리 훅 임포트
 import { useState, useEffect } from "react";
+// Next.js 라우터 훅 임포트 (페이지 이동 및 리다이렉션을 위해 사용)
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import { getPixels, savePixels } from "@/lib/api";
-import {
-  supabase,
-  getAboutContent,
-  updateAboutContent,
-  getFAQItems,
-  upsertFAQItem,
-  deleteFAQItem,
-} from "@/lib/supabase";
+// UI 컴포넌트 임포트 (탭 버튼 렌더링에 사용)
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Pixel } from "@/lib/types";
-import debounce from "lodash/debounce";
+// Supabase 관련 함수와 클라이언트 임포트 (데이터베이스 작업에 사용)
+import { supabase, getAboutContent, updateAboutContent, getFAQItems, upsertFAQItem, deleteFAQItem } from "@/lib/supabase";
+// API 함수 임포트 (픽셀 데이터 작업에 사용)
+import { getPixels, savePixels } from "@/lib/api";
+// 타입 정의 임포트 (데이터 구조 정의)
+import { Pixel, AboutItem, FAQItem } from "@/lib/types";
+// 관리자 페이지의 하위 컴포넌트 임포트
+import AdminLogin from "./components/AdminLogin";
+import ManagePixels from "./components/ManagePixels";
+import ManageAbout from "./components/ManageAbout";
+import ManageFAQ from "./components/ManageFAQ";
 
-// React Quill을 동적 임포트 (SSR 비활성화)
-const ReactQuill = dynamic(() => import("react-quill"), {
-  ssr: false,
-});
-import "react-quill/dist/quill.snow.css";
-
-// React Quill 에디터 설정
-const quillModules = {
-  toolbar: [
-    [{ header: [1, 2, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ list: "ordered" }, { list: "bullet" }],
-    ["link"],
-    ["clean"],
-  ],
-};
-
-// FAQ 항목 타입 정의
-interface FAQItem {
-  id: number;
-  question: string;
-  content: string;
-}
-
-// About 항목 타입 정의
-interface AboutItem {
-  id: string;
-  category: string;
-  title: string;
-  content: string;
-}
-
-// Admin 페이지 컴포넌트
+// Admin 페이지 컴포넌트: 관리자 대시보드를 렌더링하고 인증 및 데이터 로드를 관리
 export default function Admin() {
   const router = useRouter();
+  // 인증 상태 (관리자 로그인 여부)
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // 로딩 상태 (데이터 로드 중인지 여부)
   const [isLoading, setIsLoading] = useState(true);
+  // 로그인 이메일 입력 상태
   const [email, setEmail] = useState("");
+  // 로그인 비밀번호 입력 상태
   const [password, setPassword] = useState("");
+  // 픽셀 데이터 배열 상태
   const [pixels, setPixels] = useState<Pixel[]>([]);
+  // 편집 중인 픽셀 상태 (없으면 null)
   const [editPixel, setEditPixel] = useState<Pixel | null>(null);
+  // About 항목 배열 상태
   const [editAboutItems, setEditAboutItems] = useState<AboutItem[]>([]);
-  const [editAboutItem, setEditAboutItem] = useState<AboutItem | null>(null);
-  const [newAboutCategory, setNewAboutCategory] = useState("");
-  const [newAboutTitle, setNewAboutTitle] = useState("");
-  const [newAboutContent, setNewAboutContent] = useState("");
+  // FAQ 항목 배열 상태
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
-  const [editFAQItem, setEditFAQItem] = useState<FAQItem | null>(null);
-  const [newFAQQuestion, setNewFAQQuestion] = useState("");
-  const [newFAQAnswer, setNewFAQAnswer] = useState("");
+  // 활성화된 탭 상태 (Manage Pixels, Manage About, Manage FAQ 중 하나)
   const [activeTab, setActiveTab] = useState("Manage Pixels");
-  const [showAddAboutForm, setShowAddAboutForm] = useState(false);
-  const [showAddFAQForm, setShowAddFAQForm] = useState(false);
+  // 데이터 로드 에러 메시지 상태
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // 디바운싱된 상태 업데이트 함수
-  const debouncedSetNewAboutContent = debounce((value: string) => {
-    setNewAboutContent(value);
-  }, 300);
-
-  const debouncedSetEditAboutItem = debounce((newAboutItem: AboutItem) => {
-    setEditAboutItem(newAboutItem);
-  }, 300);
-
-  const debouncedSetEditFAQItem = debounce((newFAQItem: FAQItem) => {
-    setEditFAQItem(newFAQItem);
-  }, 300);
-
-  const debouncedSetNewFAQAnswer = debounce((value: string) => {
-    setNewFAQAnswer(value);
-  }, 300);
-
-  // 데이터 로드 함수
+  // 데이터 로드 함수: 픽셀, About, FAQ 데이터를 가져와 상태에 저장
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const pixelData: Pixel[] = await getPixels();
-      const contentData = await getAboutContent();
-      const faqData = await getFAQItems();
+      const pixelData = await getPixels(); // 픽셀 데이터 가져오기
+      const contentData = await getAboutContent(); // About 데이터 가져오기
+      const faqData = await getFAQItems(); // FAQ 데이터 가져오기
       console.log("Loaded pixels:", pixelData);
       console.log("Loaded about content:", contentData);
       console.log("Loaded FAQ items:", faqData);
-      setPixels(pixelData);
-      setEditAboutItems(contentData);
-      console.log("Set editAboutItems:", contentData);
+      setPixels(pixelData); // 픽셀 상태 업데이트
+      setEditAboutItems(contentData); // About 상태 업데이트
+      // FAQ 데이터의 answer를 content로 매핑
       const mappedFAQItems = faqData.map(item => ({
         id: item.id,
         question: item.question,
-        content: item.answer
+        content: item.content || item.answer || "", // answer를 content로 통일
       }));
-      setFaqItems(mappedFAQItems);
-      console.log("Set faqItems:", mappedFAQItems);
+      setFaqItems(mappedFAQItems); // FAQ 상태 업데이트
       if (contentData.length === 0 && faqData.length === 0) {
-        setLoadError("No data found in About or FAQ tables.");
+        setLoadError("No data found in About or FAQ tables."); // 데이터가 없으면 에러 메시지 설정
       }
     } catch (error: unknown) {
+      // 에러 처리: 데이터 로드 실패 시 사용자에게 알림
       if (error instanceof Error) {
         console.error("Error loading data:", error);
         setLoadError("Failed to load data: " + error.message);
@@ -130,11 +75,11 @@ export default function Admin() {
         setLoadError("Failed to load data: Unknown error");
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // 로딩 상태 해제
     }
   };
 
-  // 로그인 상태 확인
+  // 로그인 상태 확인: Supabase 세션을 확인하여 관리자 권한 확인
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -147,18 +92,18 @@ export default function Admin() {
 
         if (error) {
           console.error("Error fetching user role:", error.message);
-          router.push('/');
+          router.push('/'); // 에러 발생 시 홈페이지로 리다이렉트
           return;
         }
 
         const userRole = data?.role;
         if (userRole === 'admin') {
-          setIsAuthenticated(true);
+          setIsAuthenticated(true); // 관리자 권한 확인 시 인증 상태 설정
         } else {
-          router.push('/');
+          router.push('/'); // 관리자가 아니면 홈페이지로 리다이렉트
         }
       } else {
-        setIsLoading(false);
+        setIsLoading(false); // 세션이 없으면 로딩 종료
       }
     };
 
@@ -172,14 +117,14 @@ export default function Admin() {
     }
   }, [isAuthenticated]);
 
-  // 로그인 핸들러
+  // 로그인 핸들러: Supabase를 통해 관리자 로그인 처리
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) {
-      alert("Login failed: " + error.message);
+      alert("Login failed: " + error.message); // 로그인 실패 시 사용자에게 알림
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -203,7 +148,7 @@ export default function Admin() {
 
       const userRole = data?.role;
       if (userRole === 'admin') {
-        setIsAuthenticated(true);
+        setIsAuthenticated(true); // 관리자 권한 확인 시 인증 상태 설정
       } else {
         alert("Access denied: You are not an admin.");
         await supabase.auth.signOut();
@@ -211,317 +156,16 @@ export default function Admin() {
     }
   };
 
-  // 픽셀 수정 핸들러
-  const handleEditPixel = (pixel: Pixel) => {
-    setEditPixel({ ...pixel });
-  };
-
-  // 픽셀 저장 핸들러
-  const handleSavePixel = async () => {
-    if (!editPixel) return;
-    const updatedPixels = pixels.map((p) =>
-      p.x === editPixel.x && p.y === editPixel.y ? editPixel : p
-    );
-    await savePixels(updatedPixels);
-    setPixels(updatedPixels);
-    setEditPixel(null);
-  };
-
-  // 픽셀 삭제 핸들러
-  const handleDeletePixel = async (x: number, y: number) => {
-    try {
-      // Supabase에서 픽셀 데이터 삭제
-      const { error } = await supabase
-        .from("pixels")
-        .delete()
-        .eq("x", x)
-        .eq("y", y);
-
-      if (error) {
-        console.error("Error deleting pixel from Supabase:", error);
-        throw error;
-      }
-
-      // UI에서 픽셀 데이터 업데이트
-      const updatedPixels = pixels.filter((p) => !(p.x === x && p.y === y));
-      setPixels(updatedPixels);
-      alert("Pixel deleted successfully!");
-
-      // 삭제 후 데이터 리로드 확인
-      const remainingPixels = await getPixels();
-      console.log("Remaining pixels after deletion:", remainingPixels);
-    } catch (error: unknown) {
-      console.error("Failed to delete pixel:", error);
-      if (error && typeof error === "object" && "message" in error) {
-        alert(`Failed to delete pixel: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        alert(`Failed to delete pixel: ${error.message}`);
-      } else {
-        alert("Failed to delete pixel: An unexpected error occurred");
-      }
-      // 실패 시 데이터 리로드
-      const pixelData = await getPixels();
-      setPixels(pixelData);
-    }
-  };
-
-  // About 항목 수정 시작 핸들러
-  const handleEditAbout = (item: AboutItem) => {
-    setEditAboutItem({ ...item });
-  };
-
-  // About 항목 저장 핸들러
-  const handleSaveAbout = async () => {
-    if (!editAboutItem) return;
-    try {
-      console.log("Saving About item:", editAboutItem);
-      await updateAboutContent(
-        editAboutItem.category,
-        editAboutItem.category,
-        editAboutItem.title,
-        editAboutItem.content
-      );
-      setEditAboutItems(
-        editAboutItems.map((item) =>
-          item.id === editAboutItem.id ? editAboutItem : item
-        )
-      );
-      setEditAboutItem(null);
-      alert("About item updated!");
-      // 데이터 리로드
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData);
-    } catch (error: unknown) {
-      console.error("Failed to update About item:", error);
-      if (error && typeof error === "object" && "message" in error) {
-        alert(`Failed to update About item: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        alert(`Failed to update About item: ${error.message}`);
-      } else {
-        alert("Failed to update About item: An unexpected error occurred");
-      }
-      // 실패 시 데이터 리로드
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData);
-    }
-  };
-
-  // About 항목 삭제 핸들러
-  const handleDeleteAbout = async (category: string) => {
-    try {
-      await supabase.from("about").delete().eq("category", category);
-      setEditAboutItems(editAboutItems.filter((item) => item.category !== category));
-      alert("About item deleted!");
-      // 데이터 리로드
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData);
-    } catch (error: unknown) {
-      if (error && typeof error === "object" && "message" in error) {
-        console.error("Failed to delete About item:", error);
-        alert(`Failed to delete About item: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        console.error("Failed to delete About item:", error);
-        alert("Failed to delete About item: " + error.message);
-      } else {
-        console.error("Unknown error:", error);
-        alert("Failed to delete About item: Unknown error");
-      }
-      // 실패 시 데이터 리로드
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData);
-    }
-  };
-
-  // About 항목 추가 핸들러
-  const handleAddAbout = async () => {
-    if (!newAboutCategory || !newAboutContent || !newAboutTitle) {
-      alert("Please fill in category, title, and content.");
-      return;
-    }
-    try {
-      await updateAboutContent(newAboutCategory, newAboutCategory, newAboutTitle, newAboutContent);
-      setEditAboutItems([...editAboutItems, { id: crypto.randomUUID(), category: newAboutCategory, title: newAboutTitle, content: newAboutContent }]);
-      setNewAboutCategory("");
-      setNewAboutTitle("");
-      setNewAboutContent("");
-      setShowAddAboutForm(false);
-      alert("About item added!");
-      // 데이터 리로드
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData);
-    } catch (error: unknown) {
-      if (error && typeof error === "object" && "message" in error) {
-        console.error("Failed to add About item:", error);
-        alert(`Failed to add About item: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        console.error("Failed to add About item:", error);
-        alert("Failed to add About item: " + error.message);
-      } else {
-        console.error("Unknown error:", error);
-        alert("Failed to add About item: Unknown error");
-      }
-      // 실패 시 데이터 리로드
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData);
-    }
-  };
-
-  // FAQ 항목 추가 핸들러
-  const handleAddFAQ = async () => {
-    if (!newFAQQuestion || !newFAQAnswer) {
-      alert("Please fill in both question and answer.");
-      return;
-    }
-    try {
-      const newItem = await upsertFAQItem(null, newFAQQuestion, newFAQAnswer);
-      setFaqItems([...faqItems, newItem[0]]);
-      setNewFAQQuestion("");
-      setNewFAQAnswer("");
-      setShowAddFAQForm(false);
-      alert("FAQ item added!");
-      // 데이터 리로드
-      const faqData = await getFAQItems();
-      const mappedFAQItems = faqData.map(item => ({
-        id: item.id,
-        question: item.question,
-        content: item.answer
-      }));
-      setFaqItems(mappedFAQItems);
-    } catch (error: unknown) {
-      if (error && typeof error === "object" && "message" in error) {
-        console.error("Failed to add FAQ item:", error);
-        alert(`Failed to add FAQ item: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        console.error("Failed to add FAQ item:", error);
-        alert("Failed to add FAQ item: " + error.message);
-      } else {
-        console.error("Unknown error:", error);
-        alert("Failed to add FAQ item: Unknown error");
-      }
-      // 실패 시 데이터 리로드
-      const faqData = await getFAQItems();
-      const mappedFAQItems = faqData.map(item => ({
-        id: item.id,
-        question: item.question,
-        content: item.answer
-      }));
-      setFaqItems(mappedFAQItems);
-    }
-  };
-
-  // FAQ 항목 수정 시작 핸들러
-  const handleEditFAQ = (item: FAQItem) => {
-    setEditFAQItem({ ...item });
-  };
-
-  // FAQ 항목 저장 핸들러
-  const handleSaveFAQ = async () => {
-    if (!editFAQItem) return;
-    try {
-      console.log("Saving FAQ item:", editFAQItem);
-      const updatedItem = await upsertFAQItem(
-        editFAQItem.id,
-        editFAQItem.question,
-        editFAQItem.content
-      );
-      setFaqItems(
-        faqItems.map((item) => (item.id === updatedItem[0].id ? updatedItem[0] : item))
-      );
-      setEditFAQItem(null);
-      alert("FAQ item updated!");
-      // 데이터 리로드
-      const faqData = await getFAQItems();
-      const mappedFAQItems = faqData.map(item => ({
-        id: item.id,
-        question: item.question,
-        content: item.answer
-      }));
-      setFaqItems(mappedFAQItems);
-    } catch (error: unknown) {
-      if (error && typeof error === "object" && "message" in error) {
-        console.error("Failed to update FAQ item:", error);
-        alert(`Failed to update FAQ item: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        console.error("Failed to update FAQ item:", error);
-        alert("Failed to update FAQ item: " + error.message);
-      } else {
-        console.error("Unknown error:", error);
-        alert("Failed to update FAQ item: Unknown error");
-      }
-      // 실패 시 데이터 리로드
-      const faqData = await getFAQItems();
-      const mappedFAQItems = faqData.map(item => ({
-        id: item.id,
-        question: item.question,
-        content: item.answer
-      }));
-      setFaqItems(mappedFAQItems);
-    }
-  };
-
-  // FAQ 항목 삭제 핸들러
-  const handleDeleteFAQ = async (id: number) => {
-    try {
-      await deleteFAQItem(id);
-      setFaqItems(faqItems.filter((item) => item.id !== id));
-      alert("FAQ item deleted!");
-      // 데이터 리로드
-      const faqData = await getFAQItems();
-      const mappedFAQItems = faqData.map(item => ({
-        id: item.id,
-        question: item.question,
-        content: item.answer
-      }));
-      setFaqItems(mappedFAQItems);
-    } catch (error: unknown) {
-      if (error && typeof error === "object" && "message" in error) {
-        console.error("Failed to delete FAQ item:", error);
-        alert(`Failed to delete FAQ item: ${(error as { message: string }).message}`);
-      } else if (error instanceof Error) {
-        console.error("Failed to delete FAQ item:", error);
-        alert("Failed to delete FAQ item: " + error.message);
-      } else {
-        console.error("Unknown error:", error);
-        alert("Failed to delete FAQ item: Unknown error");
-      }
-      // 실패 시 데이터 리로드
-      const faqData = await getFAQItems();
-      const mappedFAQItems = faqData.map(item => ({
-        id: item.id,
-        question: item.question,
-        content: item.answer
-      }));
-      setFaqItems(mappedFAQItems);
-    }
-  };
-
   // 인증되지 않은 경우 로그인 화면 표시
   if (!isAuthenticated && !isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="max-w-md w-full p-6 border rounded-lg shadow-lg">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">
-            Admin Login
-          </h2>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter email"
-            className="mb-4"
-          />
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter password"
-            className="mb-4"
-          />
-          <Button onClick={handleLogin} className="w-full bg-[#0F4C81] hover:bg-[#1A5A96]">
-            Login
-          </Button>
-        </div>
-      </div>
+      <AdminLogin
+        email={email}
+        password={password}
+        setEmail={setEmail}
+        setPassword={setPassword}
+        handleLogin={handleLogin}
+      />
     );
   }
 
@@ -540,6 +184,7 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
 
+        {/* 탭 네비게이션: Manage Pixels, Manage About, Manage FAQ 탭 */}
         <div className="flex space-x-4 mb-8 overflow-x-auto">
           {["Manage Pixels", "Manage About", "Manage FAQ"].map((tab) => (
             <Button
@@ -556,6 +201,7 @@ export default function Admin() {
           ))}
         </div>
 
+        {/* 데이터 로드 에러 메시지 표시 */}
         {loadError && (
           <div className="mb-4 p-4 border rounded-lg bg-red-50 text-red-600">
             {loadError}
@@ -563,296 +209,38 @@ export default function Admin() {
         )}
 
         <div className="w-full">
+          {/* Manage Pixels 탭: 픽셀 관리 섹션 표시 */}
           {activeTab === "Manage Pixels" && (
-            <>
-              <section className="mb-12 w-[1200px]">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage Pixels</h2>
-                <div className="overflow-x-auto">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-1/6">Position</TableHead>
-                        <TableHead className="w-1/6">Size</TableHead>
-                        <TableHead className="w-1/6">Owner</TableHead>
-                        <TableHead className="w-2/6">Content</TableHead>
-                        <TableHead className="w-1/6">Type</TableHead>
-                        <TableHead className="w-1/6">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pixels.map((pixel) => (
-                        <TableRow key={`${pixel.x}-${pixel.y}`}>
-                          <TableCell>({pixel.x}, {pixel.y})</TableCell>
-                          <TableCell>{pixel.width}×{pixel.height}</TableCell>
-                          <TableCell>{pixel.owner}</TableCell>
-                          <TableCell>{pixel.content || "N/A"}</TableCell>
-                          <TableCell>{pixel.purchaseType}</TableCell>
-                          <TableCell>
-                            <Button style={{ width: "80px" }} variant="outline" className="mr-2" onClick={() => handleEditPixel(pixel)}>
-                              Edit
-                            </Button>
-                            <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeletePixel(pixel.x, pixel.y)}>
-                              Delete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </section>
-
-              {editPixel && (
-                <section className="mb-12 p-6 border rounded-lg w-[1200px]">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit Pixel</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Owner</label>
-                      <Input
-                        value={editPixel.owner}
-                        onChange={(e) => setEditPixel({ ...editPixel, owner: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Content URL</label>
-                      <Input
-                        value={editPixel.content ?? ""}
-                        onChange={(e) => setEditPixel({ ...editPixel, content: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Type</label>
-                      <Input
-                        value={editPixel.purchaseType}
-                        onChange={(e) =>
-                          setEditPixel({
-                            ...editPixel,
-                            purchaseType: e.target.value as "basic" | "premium",
-                          })
-                        }
-                      />
-                    </div>
-                    <Button onClick={handleSavePixel} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                      Save Changes
-                    </Button>
-                  </div>
-                </section>
-              )}
-            </>
+            <ManagePixels
+              pixels={pixels}
+              setPixels={setPixels}
+              editPixel={editPixel}
+              setEditPixel={setEditPixel}
+              savePixels={savePixels}
+              getPixels={getPixels}
+              supabase={supabase}
+            />
           )}
 
+          {/* Manage About 탭: About 항목 관리 섹션 표시 */}
           {activeTab === "Manage About" && (
-            <section className="mb-12 p-6 border rounded-lg w-[1200px]">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage About</h2>
-              <div className="space-y-4 mb-8">
-                {editAboutItems.length > 0 ? (
-                  editAboutItems.map((item) => (
-                    <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800">{item.title}</h3>
-                        <p className="text-gray-600 mt-1">Category: {item.category}</p>
-                        <div
-                          className="text-gray-600 mt-2"
-                          dangerouslySetInnerHTML={{ __html: item.content }}
-                        />
-                      </div>
-                      <div className="space-x-2 ml-10">
-                        <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditAbout(item)}>
-                          Edit
-                        </Button>
-                        <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeleteAbout(item.category)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600">No About items available.</p>
-                )}
-              </div>
-
-              <Button onClick={() => setShowAddAboutForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96] mb-4">
-                Add Content
-              </Button>
-
-              {showAddAboutForm && (
-                <div className="space-y-4 mt-8 p-4 border rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800">Add New About Item</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Category</label>
-                    <Input
-                      value={newAboutCategory}
-                      onChange={(e) => setNewAboutCategory(e.target.value)}
-                      placeholder="Enter category"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Title</label>
-                    <Input
-                      value={newAboutTitle}
-                      onChange={(e) => setNewAboutTitle(e.target.value)}
-                      placeholder="Enter title"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Content</label>
-                    <ReactQuill
-                      value={newAboutContent}
-                      onChange={(value) => debouncedSetNewAboutContent(value)}
-                      modules={quillModules}
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-x-2">
-                    <Button onClick={handleAddAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                      Add About Item
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowAddAboutForm(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {editAboutItem && (
-                <div className="space-y-4 p-4 border rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800">Edit About</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Category</label>
-                    <Input
-                      value={editAboutItem.category}
-                      onChange={(e) =>
-                        setEditAboutItem({ ...editAboutItem, category: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Title</label>
-                    <Input
-                      value={editAboutItem.title}
-                      onChange={(e) =>
-                        setEditAboutItem({ ...editAboutItem, title: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Content</label>
-                    <ReactQuill
-                      value={editAboutItem.content}
-                      onChange={(value) => debouncedSetEditAboutItem({ ...editAboutItem, content: value })}
-                      modules={quillModules}
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-x-2">
-                    <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                      Save Changes
-                    </Button>
-                    <Button variant="outline" onClick={() => setEditAboutItem(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </section>
+            <ManageAbout
+              editAboutItems={editAboutItems}
+              setEditAboutItems={setEditAboutItems}
+              updateAboutContent={updateAboutContent}
+              supabase={supabase}
+            />
           )}
 
+          {/* Manage FAQ 탭: FAQ 항목 관리 섹션 표시 */}
           {activeTab === "Manage FAQ" && (
-            <section className="mb-12 p-6 border rounded-lg w-[1200px]">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage FAQ</h2>
-              <div className="space-y-4 mb-8">
-                {faqItems.length > 0 ? (
-                  faqItems.map((item) => (
-                    <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800">{item.question}</h3>
-                        <div
-                          className="text-gray-600 mt-2"
-                          dangerouslySetInnerHTML={{ __html: item.content }}
-                        />
-                      </div>
-                      <div className="space-x-2 ml-10">
-                        <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditFAQ(item)}>
-                          Edit
-                        </Button>
-                        <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeleteFAQ(item.id)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600">No FAQ items available.</p>
-                )}
-              </div>
-
-              <Button onClick={() => setShowAddFAQForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96] mb-4">
-                Add Content
-              </Button>
-
-              {showAddFAQForm && (
-                <div className="space-y-4 mb-8 p-4 border rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800">Add New FAQ</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Question</label>
-                    <Input
-                      value={newFAQQuestion}
-                      onChange={(e) => setNewFAQQuestion(e.target.value)}
-                      placeholder="Enter question"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Answer</label>
-                    <ReactQuill
-                      value={newFAQAnswer}
-                      onChange={(value) => debouncedSetNewFAQAnswer(value)}
-                      modules={quillModules}
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-x-2">
-                    <Button onClick={handleAddFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                      Add FAQ
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowAddFAQForm(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {editFAQItem && (
-                <div className="space-y-4 p-4 border rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800">Edit FAQ</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Question</label>
-                    <Input
-                      value={editFAQItem.question}
-                      onChange={(e) =>
-                        setEditFAQItem({ ...editFAQItem, question: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Answer</label>
-                    <ReactQuill
-                      value={editFAQItem.content}
-                      onChange={(value) => debouncedSetEditFAQItem({ ...editFAQItem, content: value })}
-                      modules={quillModules}
-                      className="bg-white"
-                    />
-                  </div>
-                  <div className="space-x-2">
-                    <Button onClick={handleSaveFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                      Save Changes
-                    </Button>
-                    <Button variant="outline" onClick={() => setEditFAQItem(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </section>
+            <ManageFAQ
+              faqItems={faqItems}
+              setFaqItems={setFaqItems}
+              upsertFAQItem={upsertFAQItem}
+              deleteFAQItem={deleteFAQItem}
+              getFAQItems={getFAQItems}
+            />
           )}
         </div>
       </div>
