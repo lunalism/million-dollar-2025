@@ -1,7 +1,4 @@
 // lib/supabase.ts
-
-// Supabase와 관련된 데이터베이스 작업을 처리하는 파일입니다.
-
 import { createClient } from "@supabase/supabase-js";
 
 // Supabase 클라이언트 생성
@@ -21,7 +18,6 @@ interface AboutItem {
 }
 
 // About 데이터 가져오기 함수입니다.
-// @returns {Promise<AboutItem[]>} About 항목 배열을 반환합니다. 에러 발생 시 빈 배열을 반환합니다.
 export const getAboutContent = async (): Promise<AboutItem[]> => {
   const { data, error } = await supabase.from("about").select("*");
   if (error) {
@@ -32,36 +28,28 @@ export const getAboutContent = async (): Promise<AboutItem[]> => {
 };
 
 // About 데이터를 업데이트하는 함수입니다.
-// @param {string} oldCategory - 기존 카테고리 (업데이트 기준)
-// @param {string} newCategory - 새로운 카테고리
-// @param {string} content - About 항목의 내용
-// @returns {Promise<void>} 성공 시 아무 값도 반환하지 않으며, 에러 발생 시 예외를 던집니다.
 export const updateAboutContent = async (
   oldCategory: string,
   newCategory: string,
   content: string
 ): Promise<void> => {
-  // 기존 데이터 삭제 후 새 데이터 삽입
-  const { error: deleteError } = await supabase
-    .from("about")
-    .delete()
-    .eq("category", oldCategory);
-  if (deleteError) {
-    console.error("Error deleting old about content:", deleteError);
-    throw deleteError;
-  }
+  try {
+    // category가 변경되지 않은 경우 content만 업데이트
+    const { error } = await supabase
+      .from("about")
+      .upsert({ category: newCategory, content }, { onConflict: "category" });
 
-  const { error: insertError } = await supabase
-    .from("about")
-    .insert({ category: newCategory, content });
-  if (insertError) {
-    console.error("Error inserting new about content:", insertError);
-    throw insertError;
+    if (error) {
+      console.error("Error upserting about content:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("updateAboutContent error:", error);
+    throw error;
   }
 };
 
 // FAQ 데이터를 가져오는 함수입니다.
-// @returns {Promise<FAQItem[]>} FAQ 항목 배열을 반환합니다. 에러 발생 시 빈 배열을 반환합니다.
 export const getFAQItems = async () => {
   const { data, error } = await supabase.from("faq").select("*").order("id");
   if (error) {
@@ -72,10 +60,6 @@ export const getFAQItems = async () => {
 };
 
 // FAQ 항목을 추가하거나 업데이트하는 함수입니다.
-// @param {number | null} id - FAQ 항목의 ID (null이면 새 항목 추가)
-// @param {string} question - FAQ 질문
-// @param {string} content - FAQ 답변
-// @returns {Promise<FAQItem[]>} 업데이트된 FAQ 항목 배열을 반환합니다.
 export const upsertFAQItem = async (id: number | null, question: string, content: string) => {
   const { data, error } = await supabase
     .from("faq")
@@ -89,8 +73,6 @@ export const upsertFAQItem = async (id: number | null, question: string, content
 };
 
 // FAQ 항목을 삭제하는 함수입니다.
-// @param {number} id - 삭제할 FAQ 항목의 ID
-// @returns {Promise<void>} 성공 시 아무 값도 반환하지 않으며, 에러 발생 시 예외를 던집니다.
 export const deleteFAQItem = async (id: number) => {
   const { error } = await supabase.from("faq").delete().eq("id", id);
   if (error) {

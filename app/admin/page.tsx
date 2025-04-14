@@ -257,14 +257,29 @@ export default function Admin() {
       );
       setEditAboutItem(null);
       alert("About item updated!");
+      // 데이터 리로드
+      const contentData = await getAboutContent();
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Failed to update About item:", error);
-        alert("Failed to update About item: " + error.message);
+      console.error("Failed to update About item:", error);
+      if (error && typeof error === "object" && "message" in error) {
+        alert(`Failed to update About item: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
+        alert(`Failed to update About item: ${error.message}`);
       } else {
-        console.error("Unknown error:", error);
-        alert("Failed to update About item: Unknown error");
+        alert("Failed to update About item: An unexpected error occurred");
       }
+      // 실패 시 데이터 리로드
+      const contentData = await getAboutContent();
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
     }
   };
 
@@ -274,14 +289,31 @@ export default function Admin() {
       await supabase.from("about").delete().eq("category", category);
       setEditAboutItems(editAboutItems.filter((item) => item.category !== category));
       alert("About item deleted!");
+      // 데이터 리로드
+      const contentData = await getAboutContent();
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
     } catch (error: unknown) {
-      if (error instanceof Error) {
+      if (error && typeof error === "object" && "message" in error) {
+        console.error("Failed to delete About item:", error);
+        alert(`Failed to delete About item: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
         console.error("Failed to delete About item:", error);
         alert("Failed to delete About item: " + error.message);
       } else {
         console.error("Unknown error:", error);
         alert("Failed to delete About item: Unknown error");
       }
+      // 실패 시 데이터 리로드
+      const contentData = await getAboutContent();
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
     }
   };
 
@@ -298,14 +330,31 @@ export default function Admin() {
       setNewAboutContent("");
       setShowAddAboutForm(false);
       alert("About item added!");
+      // 데이터 리로드
+      const contentData = await getAboutContent();
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Failed to add about item:", error);
-        alert("Failed to add about item: " + error.message);
+      if (error && typeof error === "object" && "message" in error) {
+        console.error("Failed to add About item:", error);
+        alert(`Failed to add About item: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
+        console.error("Failed to add About item:", error);
+        alert("Failed to add About item: " + error.message);
       } else {
         console.error("Unknown error:", error);
-        alert("Failed to add about item: Unknown error");
+        alert("Failed to add About item: Unknown error");
       }
+      // 실패 시 데이터 리로드
+      const contentData = await getAboutContent();
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
     }
   };
 
@@ -322,14 +371,33 @@ export default function Admin() {
       setNewFAQAnswer("");
       setShowAddFAQForm(false);
       alert("FAQ item added!");
+      // 데이터 리로드
+      const faqData = await getFAQItems();
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
     } catch (error: unknown) {
-      if (error instanceof Error) {
+      if (error && typeof error === "object" && "message" in error) {
+        console.error("Failed to add FAQ item:", error);
+        alert(`Failed to add FAQ item: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
         console.error("Failed to add FAQ item:", error);
         alert("Failed to add FAQ item: " + error.message);
       } else {
         console.error("Unknown error:", error);
         alert("Failed to add FAQ item: Unknown error");
       }
+      // 실패 시 데이터 리로드
+      const faqData = await getFAQItems();
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
     }
   };
 
@@ -353,14 +421,33 @@ export default function Admin() {
       );
       setEditFAQItem(null);
       alert("FAQ item updated!");
+      // 데이터 리로드
+      const faqData = await getFAQItems();
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
     } catch (error: unknown) {
-      if (error instanceof Error) {
+      if (error && typeof error === "object" && "message" in error) {
+        console.error("Failed to update FAQ item:", error);
+        alert(`Failed to update FAQ item: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
         console.error("Failed to update FAQ item:", error);
         alert("Failed to update FAQ item: " + error.message);
       } else {
         console.error("Unknown error:", error);
         alert("Failed to update FAQ item: Unknown error");
       }
+      // 실패 시 데이터 리로드
+      const faqData = await getFAQItems();
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
     }
   };
 
@@ -370,14 +457,33 @@ export default function Admin() {
       await deleteFAQItem(id);
       setFaqItems(faqItems.filter((item) => item.id !== id));
       alert("FAQ item deleted!");
+      // 데이터 리로드
+      const faqData = await getFAQItems();
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
     } catch (error: unknown) {
-      if (error instanceof Error) {
+      if (error && typeof error === "object" && "message" in error) {
+        console.error("Failed to delete FAQ item:", error);
+        alert(`Failed to delete FAQ item: ${(error as { message: string }).message}`);
+      } else if (error instanceof Error) {
         console.error("Failed to delete FAQ item:", error);
         alert("Failed to delete FAQ item: " + error.message);
       } else {
         console.error("Unknown error:", error);
         alert("Failed to delete FAQ item: Unknown error");
       }
+      // 실패 시 데이터 리로드
+      const faqData = await getFAQItems();
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
     }
   };
 
@@ -458,7 +564,7 @@ export default function Admin() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-1/6">Position</TableHead>
-                        <TableHead className="w-1/6">Size</TableHead> {/* 새로운 열 추가 */}
+                        <TableHead className="w-1/6">Size</TableHead>
                         <TableHead className="w-1/6">Owner</TableHead>
                         <TableHead className="w-2/6">Content</TableHead>
                         <TableHead className="w-1/6">Type</TableHead>
@@ -469,7 +575,7 @@ export default function Admin() {
                       {pixels.map((pixel) => (
                         <TableRow key={`${pixel.x}-${pixel.y}`}>
                           <TableCell>({pixel.x}, {pixel.y})</TableCell>
-                          <TableCell>{pixel.width}×{pixel.height}</TableCell> {/* 크기 표시 */}
+                          <TableCell>{pixel.width}×{pixel.height}</TableCell>
                           <TableCell>{pixel.owner}</TableCell>
                           <TableCell>{pixel.content || "N/A"}</TableCell>
                           <TableCell>{pixel.purchaseType}</TableCell>
