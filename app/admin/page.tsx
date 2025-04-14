@@ -60,6 +60,7 @@ interface AboutItem {
 export default function Admin() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // 로딩 상태 추가
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pixels, setPixels] = useState<Pixel[]>([]);
@@ -89,7 +90,47 @@ export default function Admin() {
     setNewFAQAnswer(value);
   }, 300);
 
-  // 로그인 상태 확인 및 데이터 로드
+  // 데이터 로드 함수
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const pixelData: Pixel[] = await getPixels();
+      const contentData = await getAboutContent();
+      const faqData = await getFAQItems();
+      console.log("Loaded pixels:", pixelData);
+      console.log("Loaded about content:", contentData);
+      console.log("Loaded FAQ items:", faqData);
+      setPixels(pixelData);
+      const mappedAboutItems = contentData.map(item => ({
+        category: item.category,
+        content: item.content
+      }));
+      setEditAboutItems(mappedAboutItems);
+      console.log("Set editAboutItems:", mappedAboutItems);
+      const mappedFAQItems = faqData.map(item => ({
+        id: item.id,
+        question: item.question,
+        content: item.answer
+      }));
+      setFaqItems(mappedFAQItems);
+      console.log("Set faqItems:", mappedFAQItems);
+      if (contentData.length === 0 && faqData.length === 0) {
+        setLoadError("No data found in About or FAQ tables.");
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error loading data:", error);
+        setLoadError("Failed to load data: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        setLoadError("Failed to load data: Unknown error");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 로그인 상태 확인
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -109,51 +150,23 @@ export default function Admin() {
         const userRole = data?.role;
         if (userRole === 'admin') {
           setIsAuthenticated(true);
-          loadData();
         } else {
           router.push('/');
         }
-      }
-    };
-
-    const loadData = async () => {
-      try {
-        const pixelData: Pixel[] = await getPixels();
-        const contentData = await getAboutContent();
-        const faqData = await getFAQItems();
-        console.log("Loaded pixels:", pixelData);
-        console.log("Loaded about content:", contentData);
-        console.log("Loaded FAQ items:", faqData);
-        setPixels(pixelData);
-        const mappedAboutItems = contentData.map(item => ({
-          category: item.category,
-          content: item.content
-        }));
-        setEditAboutItems(mappedAboutItems);
-        console.log("Set editAboutItems:", mappedAboutItems);
-        const mappedFAQItems = faqData.map(item => ({
-          id: item.id,
-          question: item.question,
-          content: item.answer
-        }));
-        setFaqItems(mappedFAQItems);
-        console.log("Set faqItems:", mappedFAQItems);
-        if (contentData.length === 0 && faqData.length === 0) {
-          setLoadError("No data found in About or FAQ tables.");
-        }
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          console.error("Error loading data:", error);
-          setLoadError("Failed to load data: " + error.message);
-        } else {
-          console.error("Unknown error:", error);
-          setLoadError("Failed to load data: Unknown error");
-        }
+      } else {
+        setIsLoading(false); // 세션이 없으면 로딩 종료
       }
     };
 
     checkSession();
   }, [router]);
+
+  // isAuthenticated가 true일 때 데이터 로드
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
   // 로그인 핸들러
   const handleLogin = async () => {
@@ -344,7 +357,7 @@ export default function Admin() {
   };
 
   // 인증되지 않은 경우 로그인 화면 표시
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="max-w-md w-full p-6 border rounded-lg shadow-lg">
@@ -369,6 +382,15 @@ export default function Admin() {
             Login
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // 로딩 중일 때 표시
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-lg text-gray-600">Loading...</p>
       </div>
     );
   }
