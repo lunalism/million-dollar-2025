@@ -5,10 +5,24 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getPixels, savePixels } from "@/lib/api";
-import { supabase, getAboutContent, updateAboutContent, getFAQItems, upsertFAQItem, deleteFAQItem } from "@/lib/supabase";
+import {
+  supabase,
+  getAboutContent,
+  updateAboutContent,
+  getFAQItems,
+  upsertFAQItem,
+  deleteFAQItem,
+} from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Pixel } from "@/lib/types";
 import debounce from "lodash/debounce";
 
@@ -33,7 +47,7 @@ const quillModules = {
 interface FAQItem {
   id: number;
   question: string;
-  answer: string;
+  content: string;
 }
 
 // About 항목 타입 정의
@@ -105,12 +119,12 @@ export default function Admin() {
       const pixelData: Pixel[] = await getPixels();
       const contentData = await getAboutContent();
       const faqData = await getFAQItems();
-      console.log("Loaded pixels:", pixelData); // 디버깅 로그 추가
-      console.log("Loaded about content:", contentData); // 디버깅 로그 추가
-      console.log("Loaded FAQ items:", faqData); // 디버깅 로그 추가
+      console.log("Loaded pixels:", pixelData);
+      console.log("Loaded about content:", contentData);
+      console.log("Loaded FAQ items:", faqData);
       setPixels(pixelData);
       setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
-      setFaqItems(faqData);
+      setFaqItems(faqData.map(item => ({ id: item.id, question: item.question, content: item.content })));
     };
 
     checkSession();
@@ -188,13 +202,17 @@ export default function Admin() {
   // About 내용 저장 핸들러
   const handleSaveAbout = async () => {
     try {
+      console.log("Saving About items:", editAboutItems); // 디버깅 로그 추가
       for (const item of editAboutItems) {
         await updateAboutContent(item.category, item.category, item.content);
       }
       alert("About content updated!");
+      // 데이터 저장 후 최신 데이터 로드
+      const contentData = await getAboutContent();
+      setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
     } catch (error) {
       console.error("Failed to save about content:", error);
-      alert("Failed to save about content.");
+      alert("Failed to save about content: " + error);
     }
   };
 
@@ -213,7 +231,7 @@ export default function Admin() {
       alert("About item added!");
     } catch (error) {
       console.error("Failed to add about item:", error);
-      alert("Failed to add about item.");
+      alert("Failed to add about item: " + error);
     }
   };
 
@@ -232,7 +250,7 @@ export default function Admin() {
       alert("FAQ item added!");
     } catch (error) {
       console.error("Failed to add FAQ item:", error);
-      alert("Failed to add FAQ item.");
+      alert("Failed to add FAQ item: " + error);
     }
   };
 
@@ -245,10 +263,11 @@ export default function Admin() {
   const handleSaveFAQ = async () => {
     if (!editFAQItem) return;
     try {
+      console.log("Saving FAQ item:", editFAQItem); // 디버깅 로그 추가
       const updatedItem = await upsertFAQItem(
         editFAQItem.id,
         editFAQItem.question,
-        editFAQItem.answer
+        editFAQItem.content // answer 대신 content 사용
       );
       setFaqItems(
         faqItems.map((item) => (item.id === updatedItem[0].id ? updatedItem[0] : item))
@@ -257,7 +276,7 @@ export default function Admin() {
       alert("FAQ item updated!");
     } catch (error) {
       console.error("Failed to update FAQ item:", error);
-      alert("Failed to update FAQ item.");
+      alert("Failed to update FAQ item: " + error);
     }
   };
 
@@ -269,7 +288,7 @@ export default function Admin() {
       alert("FAQ item deleted!");
     } catch (error) {
       console.error("Failed to delete FAQ item:", error);
-      alert("Failed to delete FAQ item.");
+      alert("Failed to delete FAQ item: " + error);
     }
   };
 
@@ -481,7 +500,7 @@ export default function Admin() {
                         <h3 className="text-lg font-semibold text-gray-800">{item.question}</h3>
                         <div
                           className="text-gray-600 mt-2"
-                          dangerouslySetInnerHTML={{ __html: item.answer }}
+                          dangerouslySetInnerHTML={{ __html: item.content }}
                         />
                       </div>
                       <div className="space-x-2 ml-10">
@@ -549,8 +568,8 @@ export default function Admin() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Answer</label>
                     <ReactQuill
-                      value={editFAQItem.answer}
-                      onChange={(value) => debouncedSetEditFAQItem({ ...editFAQItem, answer: value })}
+                      value={editFAQItem.content} // answer 대신 content 사용
+                      onChange={(value) => debouncedSetEditFAQItem({ ...editFAQItem, content: value })}
                       modules={quillModules}
                       className="bg-white"
                     />
