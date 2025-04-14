@@ -72,9 +72,9 @@ export default function Admin() {
   const [newFAQQuestion, setNewFAQQuestion] = useState("");
   const [newFAQAnswer, setNewFAQAnswer] = useState("");
   const [activeTab, setActiveTab] = useState("Manage Pixels");
-  const [showAddAboutForm, setShowAddAboutForm] = useState(false); // About 추가 폼 표시 상태
-  const [showAddFAQForm, setShowAddFAQForm] = useState(false); // FAQ 추가 폼 표시 상태
-  const [loadError, setLoadError] = useState<string | null>(null); // 데이터 로드 에러 메시지
+  const [showAddAboutForm, setShowAddAboutForm] = useState(false);
+  const [showAddFAQForm, setShowAddFAQForm] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // 디바운싱된 상태 업데이트 함수
   const debouncedSetNewAboutContent = debounce((value: string) => {
@@ -102,7 +102,7 @@ export default function Admin() {
 
         if (error) {
           console.error("Error fetching user role:", error.message);
-          router.push('/'); // 에러 발생 시 홈으로 리다이렉트
+          router.push('/');
           return;
         }
 
@@ -111,7 +111,7 @@ export default function Admin() {
           setIsAuthenticated(true);
           loadData();
         } else {
-          router.push('/'); // 관리자가 아닌 경우 홈으로 리다이렉트
+          router.push('/');
         }
       }
     };
@@ -125,14 +125,30 @@ export default function Admin() {
         console.log("Loaded about content:", contentData);
         console.log("Loaded FAQ items:", faqData);
         setPixels(pixelData);
-        setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
-        setFaqItems(faqData.map(item => ({ id: item.id, question: item.question, content: item.content })));
+        const mappedAboutItems = contentData.map(item => ({
+          category: item.category,
+          content: item.content
+        }));
+        setEditAboutItems(mappedAboutItems);
+        console.log("Set editAboutItems:", mappedAboutItems);
+        const mappedFAQItems = faqData.map(item => ({
+          id: item.id,
+          question: item.question,
+          content: item.answer
+        }));
+        setFaqItems(mappedFAQItems);
+        console.log("Set faqItems:", mappedFAQItems);
         if (contentData.length === 0 && faqData.length === 0) {
           setLoadError("No data found in About or FAQ tables.");
         }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setLoadError("Failed to load data: " + (error || "Unknown error"));
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error("Error loading data:", error);
+          setLoadError("Failed to load data: " + error.message);
+        } else {
+          console.error("Unknown error:", error);
+          setLoadError("Failed to load data: Unknown error");
+        }
       }
     };
 
@@ -203,9 +219,11 @@ export default function Admin() {
 
   // About 항목 수정 핸들러
   const handleEditAbout = (index: number, field: 'category' | 'content', value: string) => {
-    const updatedItems = [...editAboutItems];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
-    setEditAboutItems(updatedItems);
+    setEditAboutItems(prevItems => {
+      const updatedItems = [...prevItems];
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
+      return updatedItems;
+    });
   };
 
   // About 내용 저장 핸들러
@@ -218,9 +236,14 @@ export default function Admin() {
       alert("About content updated!");
       const contentData = await getAboutContent();
       setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
-    } catch (error) {
-      console.error("Failed to save about content:", error);
-      alert("Failed to save about content: " + error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Failed to save about content:", error);
+        alert("Failed to save about content: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        alert("Failed to save about content: Unknown error");
+      }
     }
   };
 
@@ -237,9 +260,14 @@ export default function Admin() {
       setNewAboutContent("");
       setShowAddAboutForm(false);
       alert("About item added!");
-    } catch (error) {
-      console.error("Failed to add about item:", error);
-      alert("Failed to add about item: " + error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Failed to add about item:", error);
+        alert("Failed to add about item: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        alert("Failed to add about item: Unknown error");
+      }
     }
   };
 
@@ -256,9 +284,14 @@ export default function Admin() {
       setNewFAQAnswer("");
       setShowAddFAQForm(false);
       alert("FAQ item added!");
-    } catch (error) {
-      console.error("Failed to add FAQ item:", error);
-      alert("Failed to add FAQ item: " + error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Failed to add FAQ item:", error);
+        alert("Failed to add FAQ item: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        alert("Failed to add FAQ item: Unknown error");
+      }
     }
   };
 
@@ -282,9 +315,14 @@ export default function Admin() {
       );
       setEditFAQItem(null);
       alert("FAQ item updated!");
-    } catch (error) {
-      console.error("Failed to update FAQ item:", error);
-      alert("Failed to update FAQ item: " + error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Failed to update FAQ item:", error);
+        alert("Failed to update FAQ item: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        alert("Failed to update FAQ item: Unknown error");
+      }
     }
   };
 
@@ -294,9 +332,14 @@ export default function Admin() {
       await deleteFAQItem(id);
       setFaqItems(faqItems.filter((item) => item.id !== id));
       alert("FAQ item deleted!");
-    } catch (error) {
-      console.error("Failed to delete FAQ item:", error);
-      alert("Failed to delete FAQ item: " + error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Failed to delete FAQ item:", error);
+        alert("Failed to delete FAQ item: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        alert("Failed to delete FAQ item: Unknown error");
+      }
     }
   };
 
