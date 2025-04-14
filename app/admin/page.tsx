@@ -60,12 +60,13 @@ interface AboutItem {
 export default function Admin() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // 로딩 상태 추가
+  const [isLoading, setIsLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pixels, setPixels] = useState<Pixel[]>([]);
   const [editPixel, setEditPixel] = useState<Pixel | null>(null);
   const [editAboutItems, setEditAboutItems] = useState<AboutItem[]>([]);
+  const [editAboutItem, setEditAboutItem] = useState<AboutItem | null>(null); // 수정 중인 About 항목
   const [newAboutCategory, setNewAboutCategory] = useState("");
   const [newAboutContent, setNewAboutContent] = useState("");
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
@@ -80,6 +81,10 @@ export default function Admin() {
   // 디바운싱된 상태 업데이트 함수
   const debouncedSetNewAboutContent = debounce((value: string) => {
     setNewAboutContent(value);
+  }, 300);
+
+  const debouncedSetEditAboutItem = debounce((newAboutItem: AboutItem) => {
+    setEditAboutItem(newAboutItem);
   }, 300);
 
   const debouncedSetEditFAQItem = debounce((newFAQItem: FAQItem) => {
@@ -154,7 +159,7 @@ export default function Admin() {
           router.push('/');
         }
       } else {
-        setIsLoading(false); // 세션이 없으면 로딩 종료
+        setIsLoading(false);
       }
     };
 
@@ -230,32 +235,52 @@ export default function Admin() {
     setPixels(updatedPixels);
   };
 
-  // About 항목 수정 핸들러
-  const handleEditAbout = (index: number, field: 'category' | 'content', value: string) => {
-    setEditAboutItems(prevItems => {
-      const updatedItems = [...prevItems];
-      updatedItems[index] = { ...updatedItems[index], [field]: value };
-      return updatedItems;
-    });
+  // About 항목 수정 시작 핸들러
+  const handleEditAbout = (item: AboutItem) => {
+    setEditAboutItem({ ...item });
   };
 
-  // About 내용 저장 핸들러
+  // About 항목 저장 핸들러
   const handleSaveAbout = async () => {
+    if (!editAboutItem) return;
     try {
-      console.log("Saving About items:", editAboutItems);
-      for (const item of editAboutItems) {
-        await updateAboutContent(item.category, item.category, item.content);
-      }
-      alert("About content updated!");
-      const contentData = await getAboutContent();
-      setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
+      console.log("Saving About item:", editAboutItem);
+      await updateAboutContent(
+        editAboutItem.category, // 기존 카테고리
+        editAboutItem.category, // 새로운 카테고리 (변경 가능)
+        editAboutItem.content
+      );
+      setEditAboutItems(
+        editAboutItems.map((item) =>
+          item.category === editAboutItem.category ? editAboutItem : item
+        )
+      );
+      setEditAboutItem(null);
+      alert("About item updated!");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        console.error("Failed to save about content:", error);
-        alert("Failed to save about content: " + error.message);
+        console.error("Failed to update About item:", error);
+        alert("Failed to update About item: " + error.message);
       } else {
         console.error("Unknown error:", error);
-        alert("Failed to save about content: Unknown error");
+        alert("Failed to update About item: Unknown error");
+      }
+    }
+  };
+
+  // About 항목 삭제 핸들러
+  const handleDeleteAbout = async (category: string) => {
+    try {
+      await supabase.from("about").delete().eq("category", category);
+      setEditAboutItems(editAboutItems.filter((item) => item.category !== category));
+      alert("About item deleted!");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Failed to delete About item:", error);
+        alert("Failed to delete About item: " + error.message);
+      } else {
+        console.error("Unknown error:", error);
+        alert("Failed to delete About item: Unknown error");
       }
     }
   };
@@ -503,37 +528,35 @@ export default function Admin() {
           {activeTab === "Manage About" && (
             <section className="mb-12 p-6 border rounded-lg w-[1200px]">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage About</h2>
-              <div className="space-y-4">
+              <div className="space-y-4 mb-8">
                 {editAboutItems.length > 0 ? (
-                  editAboutItems.map((item, index) => (
-                    <div key={item.category}>
-                      <label className="block text-sm font-medium text-gray-700">Category</label>
-                      <Input
-                        value={item.category}
-                        onChange={(e) => handleEditAbout(index, 'category', e.target.value)}
-                        className="mb-2"
-                      />
-                      <label className="block text-sm font-medium text-gray-700">Content</label>
-                      <ReactQuill
-                        value={item.content}
-                        onChange={(value) => handleEditAbout(index, 'content', value)}
-                        modules={quillModules}
-                        className="bg-white mb-4"
-                      />
+                  editAboutItems.map((item) => (
+                    <div key={item.category} className="p-4 border rounded-lg flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800">{item.category}</h3>
+                        <div
+                          className="text-gray-600 mt-2"
+                          dangerouslySetInnerHTML={{ __html: item.content }}
+                        />
+                      </div>
+                      <div className="space-x-2 ml-10">
+                        <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditAbout(item)}>
+                          Edit
+                        </Button>
+                        <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeleteAbout(item.category)}>
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   ))
                 ) : (
                   <p className="text-gray-600">No About items available.</p>
                 )}
-                <div className="flex space-x-2">
-                  <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                    Save About Changes
-                  </Button>
-                  <Button onClick={() => setShowAddAboutForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                    Add Content
-                  </Button>
-                </div>
               </div>
+
+              <Button onClick={() => setShowAddAboutForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96] mb-4">
+                Add Content
+              </Button>
 
               {showAddAboutForm && (
                 <div className="space-y-4 mt-8 p-4 border rounded-lg">
@@ -560,6 +583,38 @@ export default function Admin() {
                       Add About Item
                     </Button>
                     <Button variant="outline" onClick={() => setShowAddAboutForm(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {editAboutItem && (
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800">Edit About</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <Input
+                      value={editAboutItem.category}
+                      onChange={(e) =>
+                        setEditAboutItem({ ...editAboutItem, category: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Content</label>
+                    <ReactQuill
+                      value={editAboutItem.content}
+                      onChange={(value) => debouncedSetEditAboutItem({ ...editAboutItem, content: value })}
+                      modules={quillModules}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-x-2">
+                    <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                      Save Changes
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditAboutItem(null)}>
                       Cancel
                     </Button>
                   </div>
