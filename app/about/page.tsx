@@ -7,15 +7,8 @@ import { usePathname } from "next/navigation"; // 현재 경로를 가져오기 
 import Header from "@/components/main/Header"; // 상단 헤더 컴포넌트
 import Link from "next/link"; // 페이지 간 이동을 위한 링크 컴포넌트
 import { Button } from "@/components/ui/button"; // 버튼 컴포넌트
-import { getAboutContent, getFAQItems } from "@/lib/supabase"; // Supabase에서 데이터 가져오기
+import { getAboutContent } from "@/lib/supabase"; // Supabase에서 데이터 가져오기
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; // 아코디언 컴포넌트
-
-// FAQ 항목 타입 정의 (faq 테이블 구조에 맞춤)
-interface FAQItem {
-  id: number;
-  question: string;
-  content: string;
-}
 
 // About 항목 타입 정의
 interface AboutItem {
@@ -27,7 +20,6 @@ interface AboutItem {
 export default function About() {
   const pathname = usePathname();
   const [contentItems, setContentItems] = useState<AboutItem[]>([]);
-  const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,9 +38,6 @@ export default function About() {
         if (filteredContentData.length > 0) {
           setSelectedCategory(filteredContentData[0].category);
         }
-
-        const faqData = await getFAQItems();
-        setFaqItems(faqData);
       } catch (error) {
         console.error("Failed to load about content:", error);
       } finally {
@@ -109,20 +98,6 @@ export default function About() {
                         {item.category}
                       </Button>
                     ))}
-                    <Button
-                      variant="ghost"
-                      className={`w-full text-left justify-start relative transition-all duration-300 ${
-                        selectedCategory === "FAQ"
-                          ? "text-[#0F4C81] font-semibold bg-[#0F4C81]/10"
-                          : "text-gray-600 hover:text-[#0F4C81] hover:bg-[#0F4C81]/5"
-                      }`}
-                      onClick={() => setSelectedCategory("FAQ")}
-                    >
-                      {selectedCategory === "FAQ" && (
-                        <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
-                      )}
-                      FAQ
-                    </Button>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -147,20 +122,6 @@ export default function About() {
                 {item.category}
               </Button>
             ))}
-            <Button
-              variant="ghost"
-              className={`w-full text-left justify-start relative transition-all duration-300 ${
-                selectedCategory === "FAQ"
-                  ? "text-[#0F4C81] font-semibold bg-[#0F4C81]/10"
-                  : "text-gray-600 hover:text-[#0F4C81] hover:bg-[#0F4C81]/5"
-              }`}
-              onClick={() => setSelectedCategory("FAQ")}
-            >
-              {selectedCategory === "FAQ" && (
-                <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
-              )}
-              FAQ
-            </Button>
           </div>
         </div>
 
@@ -171,30 +132,12 @@ export default function About() {
             key={selectedCategory}
           >
             <h2 className="text-3xl font-semibold text-[#0F4C81] mb-4">
-              {selectedCategory === "FAQ" ? "FAQ" : selectedContent?.category || "Select a category"}
+              {selectedContent?.category || "Select a category"}
             </h2>
-            {selectedCategory === "FAQ" ? (
-              <div className="space-y-4">
-                {faqItems.length > 0 ? (
-                  faqItems.map((item) => (
-                    <div key={item.id}>
-                      <h3 className="text-xl font-semibold text-gray-800">{item.question}</h3>
-                      <div
-                        className="text-gray-600 mt-2"
-                        dangerouslySetInnerHTML={{ __html: item.content }}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600">No FAQ available.</p>
-                )}
-              </div>
-            ) : (
-              <div
-                className="text-gray-600"
-                dangerouslySetInnerHTML={{ __html: selectedContent?.content || "No content available." }}
-              />
-            )}
+            <div
+              className="text-gray-600"
+              dangerouslySetInnerHTML={{ __html: selectedContent?.content || "No content available." }}
+            />
             <div className="mt-6">
               <Link href="/">
                 <Button
