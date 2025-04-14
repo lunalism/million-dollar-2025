@@ -2,20 +2,15 @@
 
 // React와 상태 관리 훅 임포트
 import { useState } from "react";
-
 // Supabase 클라이언트 타입 임포트 (Supabase와의 통신을 위해 사용)
 import { SupabaseClient } from "@supabase/supabase-js";
-
 // React Quill을 동적 임포트 (SSR 비활성화, 성능 최적화를 위해)
 import dynamic from "next/dynamic";
-
 // UI 컴포넌트 임포트 (버튼과 입력 필드 렌더링에 사용)
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 // AboutItem 타입 정의 임포트 (About 데이터 구조 정의)
 import { AboutItem } from "@/lib/types";
-
 // 상태 업데이트를 지연시키기 위한 디바운싱 유틸리티 임포트
 import debounce from "lodash/debounce";
 
@@ -43,23 +38,22 @@ interface ManageAboutProps {
 }
 
 // ManageAbout 컴포넌트: About 항목을 관리하는 UI와 로직을 처리
-export default function ManageAbout({ editAboutItems, setEditAboutItems, updateAboutContent, supabase }: ManageAboutProps) {
- 
+export default function ManageAbout({
+  editAboutItems,
+  setEditAboutItems,
+  updateAboutContent,
+  supabase,
+}: ManageAboutProps) {
   // 선택된 카테고리 상태 (초기값: 첫 번째 About 항목의 카테고리 또는 null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(editAboutItems[0]?.category || null);
-  
   // 편집 중인 About 항목 상태 (초기값: null)
   const [editAboutItem, setEditAboutItem] = useState<AboutItem | null>(null);
-  
   // About 추가 폼 표시 여부 상태
   const [showAddForm, setShowAddForm] = useState(false);
-  
   // 새 About 카테고리 입력 상태
   const [newCategory, setNewCategory] = useState("");
-  
   // 새 About 제목 입력 상태
   const [newTitle, setNewTitle] = useState("");
-  
   // 새 About 내용 입력 상태
   const [newContent, setNewContent] = useState("");
 
@@ -76,7 +70,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
   // About 항목 저장 핸들러: 편집된 About 항목을 저장
   const handleSaveAbout = async () => {
     if (!editAboutItem) return; // 편집 중인 About 항목이 없으면 종료
-
     try {
       console.log("Saving About item:", editAboutItem);
       // Supabase에 About 항목 업데이트
@@ -86,13 +79,11 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
         editAboutItem.title,
         editAboutItem.content
       );
-
       setEditAboutItems(
         editAboutItems.map((item) =>
           item.id === editAboutItem.id ? editAboutItem : item
         )
       ); // 로컬 상태에서 해당 항목 업데이트
-
       setEditAboutItem(null); // 편집 상태 초기화
       alert("About item updated!"); // 성공 알림
       const contentData = await supabase.from("about").select("*"); // 최신 About 데이터 가져오기
@@ -100,7 +91,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
     } catch (error: unknown) {
       // 에러 처리: 저장 실패 시 사용자에게 알림
       console.error("Failed to update About item:", error);
-
       if (error && typeof error === "object" && "message" in error) {
         alert(`Failed to update About item: ${(error as { message: string }).message}`);
       } else if (error instanceof Error) {
@@ -108,7 +98,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
       } else {
         alert("Failed to update About item: An unexpected error occurred");
       }
-
       const contentData = await supabase.from("about").select("*"); // 에러 발생 시에도 최신 데이터 동기화
       setEditAboutItems(contentData.data || []);
     }
@@ -118,15 +107,11 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
   const handleDeleteAbout = async (category: string) => {
     try {
       await supabase.from("about").delete().eq("category", category); // Supabase에서 About 항목 삭제
-      
       setEditAboutItems(editAboutItems.filter((item) => item.category !== category)); // 로컬 상태에서 항목 제거
       setSelectedCategory(null); // 선택된 카테고리 초기화
-      
       alert("About item deleted!"); // 성공 알림
-      
       const contentData = await supabase.from("about").select("*"); // 최신 About 데이터 가져오기
       setEditAboutItems(contentData.data || []); // 로컬 상태 업데이트
-      
       if (contentData.data && contentData.data.length > 0) {
         setSelectedCategory(contentData.data[0].category); // 첫 번째 카테고리를 선택
       }
@@ -142,7 +127,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
         console.error("Unknown error:", error);
         alert("Failed to delete About item: Unknown error");
       }
-      
       const contentData = await supabase.from("about").select("*"); // 에러 발생 시에도 최신 데이터 동기화
       setEditAboutItems(contentData.data || []);
     }
@@ -154,11 +138,9 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
       alert("Please fill in category, title, and content."); // 카테고리, 제목, 내용이 비어 있으면 경고
       return;
     }
-
     try {
       // Supabase에 새 About 항목 추가
       await updateAboutContent(newCategory, newCategory, newTitle, newContent);
-      
       setEditAboutItems([...editAboutItems, { id: crypto.randomUUID(), category: newCategory, title: newTitle, content: newContent }]); // 로컬 상태에 새 항목 추가
       setNewCategory(""); // 카테고리 입력 초기화
       setNewTitle(""); // 제목 입력 초기화
@@ -166,7 +148,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
       setShowAddForm(false); // 추가 폼 닫기
       setSelectedCategory(newCategory); // 새로 추가된 카테고리를 선택
       alert("About item added!"); // 성공 알림
-      
       const contentData = await supabase.from("about").select("*"); // 최신 About 데이터 가져오기
       setEditAboutItems(contentData.data || []); // 로컬 상태 업데이트
     } catch (error: unknown) {
@@ -181,7 +162,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
         console.error("Unknown error:", error);
         alert("Failed to add About item: Unknown error");
       }
-
       const contentData = await supabase.from("about").select("*"); // 에러 발생 시에도 최신 데이터 동기화
       setEditAboutItems(contentData.data || []);
     }
@@ -195,7 +175,14 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
         {/* 1열: 카테고리 목록 */}
         <div className="w-1/4">
           {/* 새 About 항목 추가 버튼 */}
-          <Button onClick={() => setShowAddForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96] mb-4 w-full">
+          <Button
+            onClick={() => {
+              setShowAddForm(true);
+              setEditAboutItem(null); // 편집 모드 해제
+              setSelectedCategory(null); // 선택된 카테고리 초기화
+            }}
+            className="bg-[#0F4C81] hover:bg-[#1A5A96] mb-4 w-full"
+          >
             Add Content
           </Button>
           {editAboutItems.length > 0 ? (
@@ -210,6 +197,7 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
                 onClick={() => {
                   setSelectedCategory(item.category);
                   setEditAboutItem(null);
+                  setShowAddForm(false); // 추가 폼 닫기
                 }}
               >
                 {item.category}
@@ -220,9 +208,52 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
           )}
         </div>
 
-        {/* 2열: 선택된 카테고리의 컨텐츠 */}
+        {/* 2열: 선택된 카테고리의 컨텐츠 또는 추가/편집 폼 */}
         <div className="w-3/4">
-          {selectedCategory && editAboutItems.find(item => item.category === selectedCategory) ? (
+          {showAddForm ? (
+            // 추가 폼 표시
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Add New About Item</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <Input
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="Enter category"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Title</label>
+                  <Input
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="Enter title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Content</label>
+                  <ReactQuill
+                    value={newContent}
+                    onChange={(value) => debouncedSetNewContent(value)}
+                    modules={quillModules}
+                    className="bg-white"
+                  />
+                </div>
+                <div className="space-x-2">
+                  {/* 추가 버튼: 새 About 항목 추가 */}
+                  <Button onClick={handleAddAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                    Add About Item
+                  </Button>
+                  {/* 취소 버튼: 추가 폼 닫기 */}
+                  <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : selectedCategory && editAboutItems.find(item => item.category === selectedCategory) ? (
+            // 선택된 카테고리 컨텐츠 또는 편집 폼 표시
             (() => {
               const selectedItem = editAboutItems.find(item => item.category === selectedCategory)!;
               return (
@@ -307,50 +338,6 @@ export default function ManageAbout({ editAboutItems, setEditAboutItems, updateA
           )}
         </div>
       </div>
-
-      {/* About 추가 폼: 새 About 항목 입력 */}
-      {showAddForm && (
-        <div className="mt-8 p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Add New About Item</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Category</label>
-              <Input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="Enter category"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Title</label>
-              <Input
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Enter title"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Content</label>
-              <ReactQuill
-                value={newContent}
-                onChange={(value) => debouncedSetNewContent(value)}
-                modules={quillModules}
-                className="bg-white"
-              />
-            </div>
-            <div className="space-x-2">
-              {/* 추가 버튼: 새 About 항목 추가 */}
-              <Button onClick={handleAddAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                Add About Item
-              </Button>
-              {/* 취소 버튼: 추가 폼 닫기 */}
-              <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
