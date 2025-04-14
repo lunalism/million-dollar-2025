@@ -26,6 +26,9 @@ export const getAboutContent = async (): Promise<AboutItem[]> => {
     console.error("Error fetching about content:", error);
     return [];
   }
+  if (!data || data.length === 0) {
+    console.log("No about content found in the database.");
+  }
   return data || [];
 };
 
