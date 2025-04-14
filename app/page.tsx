@@ -170,7 +170,6 @@ export default function Home() {
             isOpen={isDialogOpen}
             onClose={() => setIsDialogOpen(false)}
             onPurchase={handlePurchase}
-            pixelMap={pixelMap}
             blockSize={BLOCK_SIZE}
           />
 
