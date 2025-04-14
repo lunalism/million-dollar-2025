@@ -37,9 +37,11 @@ export default function About() {
       setIsLoading(true);
       try {
         const contentData = await getAboutContent();
+        console.log("Loaded contentData:", contentData); // 디버깅 로그 추가
         const filteredContentData = contentData.filter(
           (item) => item.category !== "How to Buy Pixels"
         );
+        console.log("Filtered contentData:", filteredContentData); // 디버깅 로그 추가
         setContentItems(filteredContentData);
         if (filteredContentData.length > 0) {
           setSelectedCategory(filteredContentData[0].category);
@@ -104,7 +106,7 @@ export default function About() {
                         {selectedCategory === item.category && (
                           <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
                         )}
-                        {item.category} {/* title 대신 category 사용 */}
+                        {item.category}
                       </Button>
                     ))}
                     <Button
@@ -142,7 +144,7 @@ export default function About() {
                 {selectedCategory === item.category && (
                   <span className="absolute left-0 top-0 h-full w-1 bg-[#0F4C81]"></span>
                 )}
-                {item.category} {/* title 대신 category 사용 */}
+                {item.category}
               </Button>
             ))}
             <Button
