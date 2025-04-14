@@ -5,24 +5,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { getPixels, savePixels } from "@/lib/api";
-import {
-  supabase,
-  getAboutContent,
-  updateAboutContent,
-  getFAQItems,
-  upsertFAQItem,
-  deleteFAQItem,
-} from "@/lib/supabase";
+import { supabase, getAboutContent, updateAboutContent, getFAQItems, upsertFAQItem, deleteFAQItem } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pixel } from "@/lib/types";
 import debounce from "lodash/debounce";
 
@@ -72,6 +58,8 @@ export default function Admin() {
   const [newFAQQuestion, setNewFAQQuestion] = useState("");
   const [newFAQAnswer, setNewFAQAnswer] = useState("");
   const [activeTab, setActiveTab] = useState("Manage Pixels");
+  const [showAddAboutForm, setShowAddAboutForm] = useState(false); // About 추가 폼 표시 상태
+  const [showAddFAQForm, setShowAddFAQForm] = useState(false); // FAQ 추가 폼 표시 상태
 
   // 디바운싱된 상태 업데이트 함수
   const debouncedSetNewAboutContent = debounce((value: string) => {
@@ -117,6 +105,9 @@ export default function Admin() {
       const pixelData: Pixel[] = await getPixels();
       const contentData = await getAboutContent();
       const faqData = await getFAQItems();
+      console.log("Loaded pixels:", pixelData); // 디버깅 로그 추가
+      console.log("Loaded about content:", contentData); // 디버깅 로그 추가
+      console.log("Loaded FAQ items:", faqData); // 디버깅 로그 추가
       setPixels(pixelData);
       setEditAboutItems(contentData.map(item => ({ category: item.category, content: item.content })));
       setFaqItems(faqData);
@@ -218,6 +209,7 @@ export default function Admin() {
       setEditAboutItems([...editAboutItems, { category: newAboutCategory, content: newAboutContent }]);
       setNewAboutCategory("");
       setNewAboutContent("");
+      setShowAddAboutForm(false); // 폼 닫기
       alert("About item added!");
     } catch (error) {
       console.error("Failed to add about item:", error);
@@ -236,6 +228,7 @@ export default function Admin() {
       setFaqItems([...faqItems, newItem[0]]);
       setNewFAQQuestion("");
       setNewFAQAnswer("");
+      setShowAddFAQForm(false); // 폼 닫기
       alert("FAQ item added!");
     } catch (error) {
       console.error("Failed to add FAQ item:", error);
@@ -411,53 +404,69 @@ export default function Admin() {
 
           {activeTab === "Manage About" && (
             <section className="mb-12 p-6 border rounded-lg w-[1200px]">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Edit About Page</h2>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage About</h2>
               <div className="space-y-4">
-                {editAboutItems.map((item, index) => (
-                  <div key={item.category}>
-                    <label className="block text-sm font-medium text-gray-700">Category</label>
-                    <Input
-                      value={item.category}
-                      onChange={(e) => handleEditAbout(index, 'category', e.target.value)}
-                      className="mb-2"
-                    />
-                    <label className="block text-sm font-medium text-gray-700">Content</label>
-                    <ReactQuill
-                      value={item.content}
-                      onChange={(value) => handleEditAbout(index, 'content', value)}
-                      modules={quillModules}
-                      className="bg-white mb-4"
-                    />
-                  </div>
-                ))}
-                <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                  Save About Changes
-                </Button>
+                {editAboutItems.length > 0 ? (
+                  editAboutItems.map((item, index) => (
+                    <div key={item.category}>
+                      <label className="block text-sm font-medium text-gray-700">Category</label>
+                      <Input
+                        value={item.category}
+                        onChange={(e) => handleEditAbout(index, 'category', e.target.value)}
+                        className="mb-2"
+                      />
+                      <label className="block text-sm font-medium text-gray-700">Content</label>
+                      <ReactQuill
+                        value={item.content}
+                        onChange={(value) => handleEditAbout(index, 'content', value)}
+                        modules={quillModules}
+                        className="bg-white mb-4"
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-600">No About items available.</p>
+                )}
+                <div className="flex space-x-2">
+                  <Button onClick={handleSaveAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                    Save About Changes
+                  </Button>
+                  <Button onClick={() => setShowAddAboutForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                    Add Content
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-4 mt-8 p-4 border rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800">Add New About Item</h3>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <Input
-                    value={newAboutCategory}
-                    onChange={(e) => setNewAboutCategory(e.target.value)}
-                    placeholder="Enter category"
-                  />
+              {showAddAboutForm && (
+                <div className="space-y-4 mt-8 p-4 border rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800">Add New About Item</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <Input
+                      value={newAboutCategory}
+                      onChange={(e) => setNewAboutCategory(e.target.value)}
+                      placeholder="Enter category"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Content</label>
+                    <ReactQuill
+                      value={newAboutContent}
+                      onChange={(value) => debouncedSetNewAboutContent(value)}
+                      modules={quillModules}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-x-2">
+                    <Button onClick={handleAddAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                      Add About Item
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowAddAboutForm(false)}>
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Content</label>
-                  <ReactQuill
-                    value={newAboutContent}
-                    onChange={(value) => debouncedSetNewAboutContent(value)}
-                    modules={quillModules}
-                    className="bg-white"
-                  />
-                </div>
-                <Button onClick={handleAddAbout} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                  Add About Item
-                </Button>
-              </div>
+              )}
             </section>
           )}
 
@@ -465,50 +474,65 @@ export default function Admin() {
             <section className="mb-12 p-6 border rounded-lg w-[1200px]">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">Manage FAQ</h2>
               <div className="space-y-4 mb-8">
-                {faqItems.map((item) => (
-                  <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800">{item.question}</h3>
-                      <div
-                        className="text-gray-600 mt-2"
-                        dangerouslySetInnerHTML={{ __html: item.answer }}
-                      />
+                {faqItems.length > 0 ? (
+                  faqItems.map((item) => (
+                    <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800">{item.question}</h3>
+                        <div
+                          className="text-gray-600 mt-2"
+                          dangerouslySetInnerHTML={{ __html: item.answer }}
+                        />
+                      </div>
+                      <div className="space-x-2 ml-10">
+                        <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditFAQ(item)}>
+                          Edit
+                        </Button>
+                        <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeleteFAQ(item.id)}>
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                    <div className="space-x-2 ml-10">
-                      <Button style={{ width: "80px" }} className="mb-3" variant="outline" onClick={() => handleEditFAQ(item)}>
-                        Edit
-                      </Button>
-                      <Button style={{ width: "80px" }} variant="destructive" onClick={() => handleDeleteFAQ(item.id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-gray-600">No FAQ items available.</p>
+                )}
               </div>
 
-              <div className="space-y-4 mb-8 p-4 border rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800">Add New FAQ</h3>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Question</label>
-                  <Input
-                    value={newFAQQuestion}
-                    onChange={(e) => setNewFAQQuestion(e.target.value)}
-                    placeholder="Enter question"
-                  />
+              <Button onClick={() => setShowAddFAQForm(true)} className="bg-[#0F4C81] hover:bg-[#1A5A96] mb-4">
+                Add Content
+              </Button>
+
+              {showAddFAQForm && (
+                <div className="space-y-4 mb-8 p-4 border rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-800">Add New FAQ</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Question</label>
+                    <Input
+                      value={newFAQQuestion}
+                      onChange={(e) => setNewFAQQuestion(e.target.value)}
+                      placeholder="Enter question"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Answer</label>
+                    <ReactQuill
+                      value={newFAQAnswer}
+                      onChange={(value) => debouncedSetNewFAQAnswer(value)}
+                      modules={quillModules}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-x-2">
+                    <Button onClick={handleAddFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
+                      Add FAQ
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowAddFAQForm(false)}>
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Answer</label>
-                  <ReactQuill
-                    value={newFAQAnswer}
-                    onChange={(value) => debouncedSetNewFAQAnswer(value)}
-                    modules={quillModules}
-                    className="bg-white"
-                  />
-                </div>
-                <Button onClick={handleAddFAQ} className="bg-[#0F4C81] hover:bg-[#1A5A96]">
-                  Add FAQ
-                </Button>
-              </div>
+              )}
 
               {editFAQItem && (
                 <div className="space-y-4 p-4 border rounded-lg">
